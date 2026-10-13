@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sau - 觀測終端</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Silkscreen&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-color: #0b0c10;
+      --card-bg: #12131a;
+      --text-main: #c5c6c7;
+      --text-muted: #666a73;
+      --lucidity-purple: #b388ff;
+      --lucidity-glow: rgba(179, 136, 255, 0.35);
+      --danger-red: #ff5252;
+      --pixel-font: 'DotGothic16', 'Silkscreen', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--pixel-font);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      line-height: 1.8;
+      font-size: 16px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* CRT 微弱掃描線質感 */
+    body::before {
+      content: " ";
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .terminal-container {
+      width: 100%;
+      max-width: 680px;
+      background: var(--card-bg);
+      border: 2px solid #232733;
+      box-shadow: 0 0 20px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.5);
+      padding: 28px;
+      padding-bottom: 52px;
+      border-radius: 4px;
+      position: relative;
+    }
+
+    /* 右上角 HUD 狀態監視器 */
+    .hud-header {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .hud-display {
+      font-size: 11px;
+      color: var(--lucidity-purple);
+      text-shadow: 0 0 5px var(--lucidity-glow);
+      background: rgba(179, 136, 255, 0.08);
+      border: 1px solid rgba(179, 136, 255, 0.25);
+      padding: 2px 8px;
+      border-radius: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    /* 初始亂碼載入區 */
+    .loading-screen {
+      text-align: center;
+      padding: 40px 10px;
+    }
+
+    .glitch-text {
+      font-size: 18px;
+      color: #9e9e9e;
+      text-shadow: 1px 0 #b388ff, -1px 0 #ff5252;
+      animation: glitch-anim 2s infinite ease-in-out;
+      word-break: break-all;
+      cursor: pointer;
+    }
+
+    .start-btn-group {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .start-btn {
+      background: transparent;
+      border: 1px dashed var(--text-muted);
+      color: var(--text-muted);
+      font-family: var(--pixel-font);
+      font-size: 13px;
+      letter-spacing: 2px;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .start-btn:hover {
+      border-color: var(--lucidity-purple);
+      color: var(--lucidity-purple);
+      box-shadow: 0 0 8px rgba(179, 136, 255, 0.25);
+    }
+
+    .load-save-btn {
+      border-color: #536dfe;
+      color: #8c9eff;
+      display: none;
+    }
+
+    /* 遊戲主區塊 */
+    .game-content {
+      display: none;
+    }
+
+    .notes-box {
+      border: 1px dashed #343a40;
+      padding: 16px;
+      margin-bottom: 24px;
+      background: rgba(0,0,0,0.3);
+      font-size: 13px;
+      color: #a0a5b0;
+    }
+
+    .notes-title {
+      color: #eaeaea;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .notes-box ul {
+      padding-left: 18px;
+      margin-top: 6px;
+    }
+
+    .term-highlight {
+      color: var(--lucidity-purple);
+      text-shadow: 0 0 5px var(--lucidity-glow);
+      font-weight: bold;
+    }
+
+    .story-paragraph {
+      margin-bottom: 18px;
+      white-space: pre-line;
+      text-align: justify;
+    }
+
+    /* 致幻晃動效果 */
+    .hallucinate {
+      display: inline-block;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 1px 0 rgba(179, 136, 255, 0.8), -1px 0 rgba(255, 82, 82, 0.8);
+      animation: hallucinate-anim 2.5s infinite ease-in-out;
+      letter-spacing: 1px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 11px;
+      color: var(--lucidity-purple);
+      text-shadow: 0 0 5px var(--lucidity-glow);
+      background: rgba(179, 136, 255, 0.06);
+      border: 1px solid rgba(179, 136, 255, 0.2);
+      padding: 2px 7px;
+      border-radius: 2px;
+      margin: 10px 0;
+      letter-spacing: 0.3px;
+    }
+
+    /* 選項列表 */
+    .choices-group {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .choice-btn {
+      background: transparent;
+      color: var(--text-main);
+      border: 1px solid #2d323f;
+      padding: 12px 16px;
+      font-family: var(--pixel-font);
+      font-size: 15px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      border-radius: 2px;
+    }
+
+    .choice-btn:hover {
+      background: #1c1f2b;
+      border-color: var(--lucidity-purple);
+      color: #ffffff;
+      transform: translateX(4px);
+      box-shadow: 0 0 10px rgba(179, 136, 255, 0.2);
+    }
+
+    /* 右下角操作導航 */
+    .terminal-footer-nav {
+      position: absolute;
+      bottom: 12px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .footer-action-btn {
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: var(--pixel-font);
+      transition: color 0.2s ease;
+      letter-spacing: 0.5px;
+    }
+
+    .footer-action-btn:hover {
+      color: var(--lucidity-purple);
+      text-shadow: 0 0 4px var(--lucidity-glow);
+    }
+
+    /* 存檔回饋提示浮條 */
+    .toast-msg {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #161822;
+      border: 1px solid var(--lucidity-purple);
+      color: var(--lucidity-purple);
+      font-size: 12px;
+      padding: 6px 16px;
+      border-radius: 2px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.7);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 300;
+    }
+
+    .toast-msg.show {
+      opacity: 1;
+    }
+
+    /* 理智衝擊/回復 彈窗 Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      width: 90%;
+      max-width: 460px;
+      background: #0f1016;
+      border: 1.5px solid var(--lucidity-purple);
+      box-shadow: 0 0 25px rgba(179, 136, 255, 0.35);
+      padding: 24px;
+      animation: modal-shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    .modal-impact {
+      font-size: 13px;
+      color: var(--lucidity-purple);
+      font-weight: bold;
+      text-shadow: 0 0 8px var(--lucidity-glow);
+      margin-bottom: 6px;
+    }
+
+    .modal-lore {
+      font-size: 14px;
+      color: #d1d2d6;
+      margin: 14px 0 20px;
+      line-height: 1.7;
+    }
+
+    .modal-confirm-btn {
+      display: block;
+      width: 100%;
+      background: #191b24;
+      border: 1px solid var(--lucidity-purple);
+      color: var(--lucidity-purple);
+      font-family: var(--pixel-font);
+      font-size: 13px;
+      padding: 9px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .modal-confirm-btn:hover {
+      background: var(--lucidity-purple);
+      color: #0b0c10;
+    }
+
+    /* 全螢幕崩解雜訊風暴遮罩 */
+    .glitch-storm-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: #000;
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #ff3333;
+      padding: 24px;
+      text-align: center;
+      overflow: hidden;
+      font-family: var(--pixel-font);
+    }
+
+    .glitch-storm-overlay.active {
+      display: flex;
+    }
+
+    .storm-zalgo {
+      font-size: 16px;
+      line-height: 1.5;
+      color: #ff5252;
+      text-shadow: 2px 0 #00ffff, -2px 0 #b388ff;
+      animation: storm-shake 0.1s infinite;
+      word-break: break-all;
+      max-width: 800px;
+    }
+
+    .storm-warning {
+      margin-top: 24px;
+      font-size: 13px;
+      color: #ffffff;
+      letter-spacing: 2px;
+      background: rgba(255, 0, 0, 0.45);
+      padding: 7px 16px;
+      border: 1px solid #ff5252;
+      box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+      word-break: break-all;
+    }
+
+    @keyframes hallucinate-anim {
+      0%, 100% {
+        transform: skew(0deg) translate(0, 0);
+        text-shadow: 1px 0 rgba(179, 136, 255, 0.8), -1px 0 rgba(255, 82, 82, 0.8);
+      }
+      25% {
+        transform: skew(-1.5deg) translate(-1px, 0.5px);
+        text-shadow: -1.5px 0 rgba(179, 136, 255, 0.9), 1.5px 0 rgba(255, 82, 82, 0.9);
+      }
+      50% {
+        transform: skew(1deg) translate(0.5px, -0.5px);
+        text-shadow: 1.5px 0 rgba(179, 136, 255, 0.85), -1.5px 0 rgba(255, 82, 82, 0.85);
+      }
+      75% {
+        transform: skew(-0.5deg) translate(1px, 0);
+        text-shadow: -1px 0 rgba(179, 136, 255, 0.75), 1px 0 rgba(255, 82, 82, 0.75);
+      }
+    }
+
+    @keyframes glitch-anim {
+      0% { transform: translate(0); }
+      20% { transform: translate(-1px, 1px); }
+      40% { transform: translate(-1px, -1px); }
+      60% { transform: translate(1px, 1px); }
+      80% { transform: translate(1px, -1px); }
+      100% { transform: translate(0); }
+    }
+
+    @keyframes modal-shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+      40%, 60% { transform: translate3d(3px, 0, 0); }
+    }
+
+    @keyframes storm-shake {
+      0% { transform: translate(2px, 1px) rotate(0deg); }
+      20% { transform: translate(-1px, -2px) rotate(0.5deg); }
+      40% { transform: translate(-3px, 0px) rotate(-0.5deg); }
+      60% { transform: translate(0px, 2px) rotate(0deg); }
+      80% { transform: translate(1px, -1px) rotate(0.5deg); }
+      100% { transform: translate(-1px, 1px) rotate(-0.5deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="terminal-container">
+    
+    <!-- 右上角 HUD -->
+    <div class="hud-header">
+      <div id="hudDisplay" class="hud-display">【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>
+    </div>
+
+    <!-- 1. 載入破面文字界面 -->
+    <div id="loadingScreen" class="loading-screen">
+      <div class="glitch-text" onclick="startNewJourney()">
+        L҉̢͚̀͂͡ǫ̶͖҇͗̎a̸͔̱͖͑̈͜͡ḑ̶̗̙̜͗̑͞i̴̢͖̔͠n҈͔̄̚͢͡g̷̛̜̜̰͑̊̿͜…̵̨̮̳̌̀̓͞m҈̯̳̟̆̕͢o̵̱̳͈̍̕͢d҉̨̜̽͗͐͞ę̵̣҇͗ ǫ̵̰̋̎͡n҉̡̰̋͡.̸̨̲̮҇̿
+      </div>
+      <div class="start-btn-group">
+        <button class="start-btn" onclick="startNewJourney()">[ 我們都在等你回來 ]</button>
+        <button id="loadSaveBtn" class="start-btn load-save-btn" onclick="loadSavedGame()">[ 讀取記憶（繼續旅程） ]</button>
+      </div>
+    </div>
+
+    <!-- 2. 主文本場景容器 -->
+    <div id="gameContent" class="game-content">
+      <!-- 注意事項：僅在第一頁顯示 -->
+      <div id="notesBox" class="notes-box">
+        <div class="notes-title">◆ Notes for the Wanderer.</div>
+        <p><span class="term-highlight">Corpus</span> 與 <span class="term-highlight">Lucidity</span>，分別對應著您的血量與理智，請小心，任何一項數值過低，皆可能致使你⋯⋯受到一些不可預防的危險。</p>
+        <ul>
+          <li>你並非全知全能者，所看到、聽到的自然也未必全然可靠，任何選擇皆可能會導致你的消失、變異或⋯⋯不過，你自己是值得信任的，對吧？</li>
+          <li>請相信，你所選擇的前方將是唯一的未來。</li>
+        </ul>
+      </div>
+
+      <!-- 動態故事段落區 -->
+      <div id="storySection"></div>
+
+      <!-- 選項區 -->
+      <div id="choicesSection" class="choices-group"></div>
+
+      <!-- 右下角導航與存檔條 -->
+      <div class="terminal-footer-nav">
+        <button class="footer-action-btn" onclick="triggerLoopReset()">[ 甦醒 ]</button>
+        <button class="footer-action-btn" onclick="saveGamePrompt()">[ 你要離開了嗎？ ]</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 3. 理智/狀態變動彈窗 -->
+  <div id="impactModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-impact" id="modalValueChange"></div>
+      <div class="status-badge" id="modalStatusBadge"></div>
+      <div class="modal-lore" id="modalLoreText"></div>
+      <button class="modal-confirm-btn" id="modalConfirmBtn" onclick="closeImpactModal()">[ 理清思緒⋯⋯ ]</button>
+    </div>
+  </div>
+
+  <!-- 4. 全螢幕崩解雜訊風暴 -->
+  <div id="glitchStorm" class="glitch-storm-overlay">
+    <div class="storm-zalgo">
+      T̸̜͒h̴̙͐e̵̮̾ ̷͚̈́w̷̦̾ä̵̖́y̵̱͌ ̵̦͌b̵̖̈́a̸̺͌c̵̝̎k̸̩̐ ̸̦̈́ḏ̶̈́o̵̡͐ë̵̖́ș̶̈́ ̵̺͐ṉ̶̈́o̷̺͐ẗ̶̤́ ̵̱̈́e̶̖̓ẍ̵̺́ḯ̸̦s̵̖̈́ṯ̶̈́.̸̦̈́<br>
+      C̸͚̈́Ä̶̖́Ǘ̶̦S̸̺̈́Ä̸̖́L̵̦̈́Ḯ̶̱T̶̖̈́Ÿ̸̦́ ̵̺̈́C̶̱̈́Ö̶̖́L̸̦̈́Ḻ̶̈́Ä̶̖́P̶̦̈́S̸̺̈́Ë̸̖́<br><br>
+      你踏出的每一步都無可挽回，這不就是你所期盼所恐懼所逃避的人生嗎:)
+    </div>
+    <!-- 越來越崩解的紅色按鈕/標籤文本 -->
+    <div class="storm-warning">【 不要逃走 不要逃走 不要逃走 不̶要̸逃̵走̸ ̶不̶要̸逃̵走̴ ̸b̸u̷y̶a̷o̴t̸a̷o̷z̶o̸u̸…̸ 】</div>
+  </div>
+
+  <!-- 存檔提示 Toast -->
+  <div id="toastMsg" class="toast-msg">記憶已刻入終端。</div>
+
+  <script>
+    const state = {
+      currentNode: 'node_intro',
+      corpus: 100,
+      lucidity: 100,
+      maxCorpus: 100,
+      maxLucidity: 100
+    };
+
+    function updateHud() {
+      const hud = document.getElementById('hudDisplay');
+      if (hud) {
+        hud.textContent = `【 Corpus: ${state.corpus}/${state.maxCorpus} ｜ Lucidity: ${state.lucidity}/${state.maxLucidity} 】`;
+      }
+    }
+
+    function getAudioContext() {
+      return new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playPageTurnSound() {
+      try {
+        const audioCtx = getAudioContext();
+        const bufferSize = audioCtx.sampleRate * 0.18;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1400, audioCtx.currentTime);
+        filter.Q.setValueAtTime(2.5, audioCtx.currentTime);
+
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 0.04);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
+
+        noise.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        noise.start();
+      } catch (e) {}
+    }
+
+    function playSanityRecoveryBellSound() {
+      try {
+        const audioCtx = getAudioContext();
+        const now = audioCtx.currentTime;
+
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(432, now);
+        osc1.frequency.exponentialRampToValueAtTime(430, now + 3.0);
+
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(864, now);
+        osc2.frequency.exponentialRampToValueAtTime(860, now + 2.5);
+
+        gainNode.gain.setValueAtTime(0.001, now);
+        gainNode.gain.linearRampToValueAtTime(0.28, now + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 3.2);
+        osc2.stop(now + 3.2);
+      } catch (e) {}
+    }
+
+    function playGlitchNoise() {
+      try {
+        const audioCtx = getAudioContext();
+        const now = audioCtx.currentTime;
+        const dur = 1.6;
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < buffer.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.sin(i / 15);
+        }
+
+        const source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0.4, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, now + dur);
+
+        source.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        source.start(now);
+      } catch (e) {}
+    }
+
+    function checkSaveExistence() {
+      const savedData = localStorage.getItem('sau_game_save');
+      const loadBtn = document.getElementById('loadSaveBtn');
+      if (savedData && loadBtn) {
+        loadBtn.style.display = 'inline-block';
+      }
+    }
+
+    function startNewJourney() {
+      playPageTurnSound();
+      state.corpus = 100;
+      state.lucidity = 100;
+      document.getElementById('loadingScreen').style.display = 'none';
+      document.getElementById('gameContent').style.display = 'block';
+      loadNode('node_intro');
+    }
+
+    function loadSavedGame() {
+      const savedRaw = localStorage.getItem('sau_game_save');
+      if (!savedRaw) return;
+      try {
+        const saved = JSON.parse(savedRaw);
+        state.currentNode = saved.currentNode || 'node_intro';
+        state.corpus = saved.corpus ?? 100;
+        state.lucidity = saved.lucidity ?? 100;
+        playPageTurnSound();
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('gameContent').style.display = 'block';
+        loadNode(state.currentNode);
+        showToast('記憶已還原。');
+      } catch(e) {
+        startNewJourney();
+      }
+    }
+
+    function saveGamePrompt() {
+      const saveData = {
+        currentNode: state.currentNode,
+        corpus: state.corpus,
+        lucidity: state.lucidity,
+        time: new Date().toISOString()
+      };
+      localStorage.setItem('sau_game_save', JSON.stringify(saveData));
+      showToast('【 觀測進度已封存。下次可於終端讀取記憶 】');
+      checkSaveExistence();
+    }
+
+    function showToast(text) {
+      const toast = document.getElementById('toastMsg');
+      toast.textContent = text;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    const storyNodes = {
+      node_intro: {
+        showNotes: true,
+        text: `你甦醒時，鞋底踩在一片濕軟的落葉上。朦朧的白霧籠罩著四周，好似一片被浸透的舊信箋，前方與退路、夢與虛實、森林與墓土一同被攪碎。你不記得自己為甚麼會在這裡，也不記得最後一段清醒的對話是在何時，也許是、是⋯⋯那張地圖？那張殘破的、印著模糊名字與焦黑墨漬，就好似血跡一樣的地圖。
+
+<div class="status-badge">【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>
+
+斷垣殘壁後，前方浮現一道小徑，在鞋面觸及碎石礫時，你聽見遠處傳來鐘聲，那聲音緩慢、遙遠，帶著氤氳濕潮的黏腥，你瞇起眼睛，不怎麼遲疑的，提起背包走了過去。
+
+你走過一段青苔磚舖成的石子路，來到湖邊，一座古樸的小鎮正佇立於聚散的霧後，頂上飄著溫暖色澤的細煙。走進小鎮，你瞧見有人走近，似乎是此處的居民，大多衣著樸素，神色親切，早已知道你會來到此地那般，居民們心領神會地替你提起行李、遞來熱茶、撫去你因周轉奔波沾上肩頭的灰塵。
+
+你聽見他們一個一個笑著說：<span class="hallucinate">你回來了。</span>那一聲聲歡喜由遠忽近，捲曲、融闋，最終失焦在四周，男女老少皆融失了可被判斷的準則，你看不清他們的臉，聽不清他們的聲音了，幻境在轉瞬間散失。
+
+你搖搖頭，試圖理清思緒。
+你現在在哪裡？你要往哪裡去？`,
+        choices: [
+          {
+            label: "【 ➤ 繼續往小鎮走去 】",
+            target: "node_1",
+            impact: {
+              diffLucidity: -5,
+              title: "Lucidity -5",
+              lore: "【你想起了一些不應記得的記憶，形似嬰孩的哭聲、尖叫的羊群、被大火燃燒的某個房間，那是誰的過去？】",
+              btnLabel: "[ 理清思緒⋯⋯ ]"
+            }
+          },
+          {
+            label: "【 ➤ 停下腳步觀察四周 】",
+            target: "node_look_around",
+            impact: {
+              diffLucidity: -5,
+              title: "Lucidity -5",
+              lore: "【你想起了一些不應記得的記憶，形似嬰孩的哭聲、尖叫的羊群、被大火燃燒的某個房間，那是誰的過去？】",
+              btnLabel: "[ 理清思緒⋯⋯ ]"
+            }
+          },
+          {
+            label: "【 ➤ 詢問旅人這是什麼地方 】",
+            target: "node_ask",
+            impact: {
+              diffLucidity: -5,
+              title: "Lucidity -5",
+              lore: "【你想起了一些不應記得的記憶，形似嬰孩的哭聲、尖叫的羊群、被大火燃燒的某個房間，那是誰的過去？】",
+              btnLabel: "[ 理清思緒⋯⋯ ]"
+            }
+          },
+          {
+            label: "【 ➤ 往回走 】",
+            isResetLoop: true
+          }
+        ]
+      },
+
+      node_1: {
+        showNotes: false,
+        text: `你踏上石徑，靴底踢起枯葉與濕泥，陳年橫豎的石板縫隙間蔓生著頑強的野草，發出清脆的碎裂聲。前方的小鎮依然靜默地矗立在薄暮中，石砌的屋舍排列得十分整齊，有些過於規矩了，染上了絲絲縷縷的潮意，空氣凝滯得異常，空白、緘默，僅有你的心跳聲與之為伴。
+
+一陣刺骨的風掠過後頸，寒意來得突兀，好似有誰人在你耳後齊聲呢喃，指頭與舌尖貼上背脊蠕動，你猛然回過頭，身後空無一人，只見到那空蕩蕩的石徑，一如前方，遠處幾株在風中搖曳的枯樹，那些房屋方圓的窗似乎正在看著你，等待著你，緊閉的窗戶後不時有誰窺視的窸窣聲投來。
+
+——你繼續往前走去。
+
+<div class="status-badge">【 Corpus: 100/100 ｜ Lucidity: 95/100 】</div>`,
+        choices: [
+          {
+            label: "【 ➤ 進入小鎮 】",
+            target: "node_enter_town",
+            impact: {
+              diffLucidity: +5,
+              isRecovery: true,
+              title: "Lucidity +5",
+              lore: "你感到某種難以言喻的平靜，彷彿那人並不屬於這個世間，卻偏巧存於此地，只為前來撫平了你的創疤，你感到胸口的壓迫感消散了些，腦中那些模糊不清的雜音也隨風而去。",
+              btnLabel: "[ 踏入小鎮⋯⋯ ]"
+            }
+          },
+          {
+            label: "【 ➤ 往回走 】",
+            isResetLoop: true
+          }
+        ]
+      },
+
+      node_look_around: {
+        showNotes: false,
+        text: `你停下腳步，試圖從這片詭闋的陌生中找出一方合理，天幕泛著鉛灰色的光，將整片荒野籠罩在極度壓抑的寂靜中。遠處不時傳來斷斷續續的鐘聲，那鐘聲也詭譎，斷點奇異，像被一張大手生生掐斷了尾巴。
+
+鎮子邊緣的白色石牆上爬滿了枯藤，那些乾癟枯敗的枝葉在風中扭曲，發出細碎的摩擦聲，牆內的濃霧中，一座雙尖塔的輪廓若隱若現，你定睛細看，塔頂似是微微傾斜著，好像一樁虔誠的迎賓禮。
+
+——你最終邁出步伐，走進小鎮。
+
+<div class="status-badge">【 Corpus: 100/100 ｜ Lucidity: 95/100 】</div>`,
+        choices: [
+          {
+            label: "【 ➤ 進入小鎮 】",
+            target: "node_enter_town",
+            impact: {
+              diffLucidity: +5,
+              isRecovery: true,
+              title: "Lucidity +5",
+              lore: "你感到某種難以言喻的平靜，彷彿那人並不屬於這個世間，卻偏巧存於此地，只為前來撫平了你的創疤，你感到胸口的壓迫感消散了些，腦中那些模糊不清的雜音也隨風而去。",
+              btnLabel: "[ 踏入小鎮⋯⋯ ]"
+            }
+          },
+          {
+            label: "【 ➤ 往回走 】",
+            isResetLoop: true
+          }
+        ]
+      },
+
+      node_ask: {
+        showNotes: false,
+        text: `：請問，這座鎮子叫什麼名字？
+
+你叫住方才擦肩而過的旅人，他身著粗麻衣衫，披著拖地的斗篷，懷中抱著一束白花，花瓣邊緣泛著枯敗的淺咖色。他緩緩轉過身，面容在陰影下模糊不清，相顧無言，沈默持續了許久，久到你幾乎要再次開口時，旅人氤氳的嘴角突然抽動了一下，那或許是個微笑。
+
+：這裡啊。
+
+旅人空靈的聲音乾澀如枯葉生裂摩擦，在說出名字前又戛然而止，他抬起青白的手指，指向你腳邊的石磚，青苔覆蓋的磚縫間，一個被雨水衝刷得幾乎模糊的刻痕漸漸清晰。再抬頭時，小徑上只剩飄落的花瓣，腳步聲卻仍在你耳邊迴響。
+
+<span class="hallucinate">Saudade.</span>
+
+<div class="status-badge">【 Corpus: 100/100 ｜ Lucidity: 95/100 】</div>`,
+        choices: [
+          {
+            label: "【 ➤ 進入小鎮 】",
+            target: "node_enter_town",
+            impact: {
+              diffLucidity: +5,
+              isRecovery: true,
+              title: "Lucidity +5",
+              lore: "你感到某種難以言喻的平靜，彷彿那人並不屬於這個世間，卻偏巧存於此地，只為前來撫平了你的創疤，你感到胸口的壓迫感消散了些，腦中那些模糊不清的雜音也隨風而去。",
+              btnLabel: "[ 踏入小鎮⋯⋯ ]"
+            }
+          },
+          {
+            label: "【 ➤ 往回走 】",
+            isResetLoop: true
+          }
+        ]
+      },
+
+      node_enter_town: {
+        showNotes: false,
+        text: `你踩上最後一塊碎石鋪路，路邊的野花正盛開著，鐵欄杆上掛著待點燃的夜燈，被細風翻動的街區名牌低聲吱咋作響，說了些什麼？你沒清。頭有點昏，許是因這段旅程太過漫長，又或是因為你早已無法確切記得，自己是如何走到這裡的，你揉了揉太陽穴，一陣疲憊感突然湧上，事實上，你告訴自己，這多正常？長途跋涉了這麼久，任誰都會恍惚。
+
+就在這時，你瞥見有什麼自眼前恍若迷霧一般出現，一名俊男子穿著剪裁精緻的暗紅色禮服，從對街悠然走來，步伐優雅自得，舉手投足間帶著一種老派貴族的氣度，在這個看著偏遠的小鎮裏，屬實顯得格外醒目，你們的目光在空中短暫地交會，男子有型的眉頭十足誇張的皺了皺，對你露出了一個略帶狐疑卻稱得上溫和的笑容。
+
+：親愛的，你迷路了嗎？
+
+他的嗓音格外低沈，帶著若有似無的異國腔調，你無法確定來處。出於戒備，你張了張口，本能地想否認，卻恍惚發現自己的記憶似是被什麼東西劃開了一道口子，潺潺地流做團團迷霧，你竟開始迷惑於前來此地的原因為何，只依稀記得口袋裡有張泛黃的地圖，邊緣已經有些磨損了，一個被遺忘名字的故鄉，以及說不明晰的好奇與念想。
+
+這般龐然的徬徨，使你一時失語，甚至忘了要做出回應，最終只好搖了搖頭，苦笑出聲。男人沒有追問，彎起眼角輕笑起來。
+
+：沒關係，我是索夫羅尼，跟我來吧，你看上去累壞了，總得找個地方坐下，更何況在路邊站久了會感冒的。
+
+<div class="status-badge">Lucidity +5 &nbsp;|&nbsp; 【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>
+
+他轉身帶路，紅色西裝的邊稜在霧光裏清晰可見，步伐刻意放緩了些，出於一類詭譎的安心感，你最終抬腳跟上了。空氣依然濕潤，遠處的鐘聲緩慢地響了起來，在水霧中碰撞叮鈴。這是夢還是現實？你不由自主的遲疑著，但索夫羅尼說得沒錯，況且、在這全然陌生的地方，有個嚮導也是好的，先找個地方落腳，總要比較妥當。`,
+        choices: [
+          {
+            label: "【 ➤ 跟上索夫羅尼 】",
+            target: "node_follow_sofroni"
+          }
+        ]
+      },
+
+      node_follow_sofroni: {
+        showNotes: false,
+        text: `索夫羅尼的身影在薄霧中若隱若現，皮鞋踏在濕漉的石磚上發出規律的清脆聲響。兩旁的房屋窗扉緊閉，但你總覺得有視線在追隨。
+<div class="status-badge">【 篇章待續 】</div>`,
+        choices: []
+      }
+    };
+
+    let pendingTargetNode = null;
+
+    function loadNode(nodeKey) {
+      const node = storyNodes[nodeKey];
+      if (!node) return;
+
+      state.currentNode = nodeKey;
+      updateHud();
+
+      const notesBox = document.getElementById('notesBox');
+      notesBox.style.display = node.showNotes ? 'block' : 'none';
+
+      const storyContainer = document.getElementById('storySection');
+      const choicesContainer = document.getElementById('choicesSection');
+
+      storyContainer.innerHTML = `<div class="story-paragraph">${node.text}</div>`;
+      choicesContainer.innerHTML = '';
+
+      node.choices.forEach(c => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = c.label;
+        btn.onclick = () => handleChoiceClick(c);
+        choicesContainer.appendChild(btn);
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function handleChoiceClick(choice) {
+      if (choice.isResetLoop) {
+        triggerLoopReset();
+        return;
+      }
+
+      if (choice.impact) {
+        pendingTargetNode = choice.target;
+        showImpactModal(choice.impact);
+      } else {
+        playPageTurnSound();
+        loadNode(choice.target);
+      }
+    }
+
+    function showImpactModal(impact) {
+      if (impact.isRecovery) {
+        playSanityRecoveryBellSound();
+      } else {
+        playPageTurnSound();
+      }
+
+      const modal = document.getElementById('impactModal');
+      const valueElem = document.getElementById('modalValueChange');
+      const badgeElem = document.getElementById('modalStatusBadge');
+      const loreElem = document.getElementById('modalLoreText');
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+
+      if (typeof impact.diffLucidity === 'number') {
+        state.lucidity = Math.min(state.maxLucidity, Math.max(0, state.lucidity + impact.diffLucidity));
+      }
+
+      updateHud();
+
+      valueElem.textContent = impact.title || "狀態異動";
+      badgeElem.textContent = `【 Corpus: ${state.corpus}/${state.maxCorpus} ｜ Lucidity: ${state.lucidity}/${state.maxLucidity} 】`;
+      loreElem.textContent = impact.lore || "";
+      confirmBtn.textContent = impact.btnLabel || "[ 確認 ]";
+
+      modal.classList.add('active');
+    }
+
+    function closeImpactModal() {
+      playPageTurnSound();
+      document.getElementById('impactModal').classList.remove('active');
+      if (pendingTargetNode) {
+        loadNode(pendingTargetNode);
+        pendingTargetNode = null;
+      }
+    }
+
+    function triggerLoopReset() {
+      playGlitchNoise();
+      const storm = document.getElementById('glitchStorm');
+      storm.classList.add('active');
+
+      setTimeout(() => {
+        storm.classList.remove('active');
+        state.corpus = 100;
+        state.lucidity = 100;
+        loadNode('node_intro');
+      }, 1900);
+    }
+
+    window.onload = function() {
+      checkSaveExistence();
+    };
+  </script>
+</body>
+</html>
