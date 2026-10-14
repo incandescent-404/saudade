@@ -65,7 +65,7 @@
       position: relative;
     }
 
-    /* 右上角 HUD 狀態監視器（無多餘面板，乾淨置右） */
+    /* 右上角 HUD 狀態監視器 */
     .hud-header {
       display: flex;
       justify-content: flex-end;
@@ -404,7 +404,6 @@
       word-break: break-all;
     }
 
-    /* 隱藏 YouTube 音樂承載層 */
     #ytPlayerContainer {
       position: absolute;
       top: -9999px;
@@ -462,14 +461,14 @@
 </head>
 <body>
 
-  <!-- 隱藏 YouTube 播放標籤 -->
+  <!-- 隱藏 YouTube 播放器 -->
   <div id="ytPlayerContainer">
     <div id="ytAudioPlayer"></div>
   </div>
 
   <div class="terminal-container">
     
-    <!-- 右上角 HUD（純數值顯示） -->
+    <!-- 右上角 HUD -->
     <div class="hud-header">
       <div id="hudDisplay" class="hud-display">【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>
     </div>
@@ -532,7 +531,6 @@
     <div class="storm-warning">【 不要逃走 不要逃走 不要逃走 不̶要̸逃̵走̸ ̶不̶要̸逃̵走̴ ̸b̸u̷y̶a̷o̴t̸a̷o̷z̶o̸u̸…̸ 】</div>
   </div>
 
-  <!-- 存檔提示 Toast -->
   <div id="toastMsg" class="toast-msg">記憶已刻入終端。</div>
 
   <!-- 載入 YouTube API -->
@@ -554,7 +552,6 @@
       }
     }
 
-    // Web Audio API 全局音訊上下文
     let globalAudioCtx = null;
     function getAudioContext() {
       if (!globalAudioCtx) {
@@ -566,7 +563,7 @@
       return globalAudioCtx;
     }
 
-    // 1. 純代碼即時合成：低頻呼吸聲 + 微弱心率 + 荒野寒風白噪音
+    // 1. 純代碼即時合成：身歷其境的「細微呼吸聲」+「呼嘯風聲」+「低頻微弱心率」
     let ambientStarted = false;
     function startProceduralAmbient() {
       if (ambientStarted) return;
@@ -574,80 +571,111 @@
 
       try {
         const ctx = getAudioContext();
-        const bufferSize = ctx.sampleRate * 4; // 4秒循環雜訊緩衝
-        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          output[i] = Math.random() * 2 - 1;
+
+        // --- 呼嘯風聲白噪音 ---
+        const windBufferSize = ctx.sampleRate * 5;
+        const windBuffer = ctx.createBuffer(1, windBufferSize, ctx.sampleRate);
+        const windData = windBuffer.getChannelData(0);
+        for (let i = 0; i < windBufferSize; i++) {
+          windData[i] = Math.random() * 2 - 1;
         }
 
-        // --- 寒風白噪音層 ---
-        const windNoise = ctx.createBufferSource();
-        windNoise.buffer = noiseBuffer;
-        windNoise.loop = true;
+        const windSource = ctx.createBufferSource();
+        windSource.buffer = windBuffer;
+        windSource.loop = true;
 
         const windFilter = ctx.createBiquadFilter();
         windFilter.type = 'bandpass';
-        windFilter.frequency.setValueAtTime(320, ctx.currentTime);
-        windFilter.Q.setValueAtTime(3.0, ctx.currentTime);
+        windFilter.frequency.setValueAtTime(280, ctx.currentTime);
+        windFilter.Q.setValueAtTime(4.5, ctx.currentTime);
 
         const windGain = ctx.createGain();
-        windGain.gain.setValueAtTime(0.06, ctx.currentTime);
+        windGain.gain.setValueAtTime(0.09, ctx.currentTime);
 
-        windNoise.connect(windFilter);
+        // 讓風聲緩慢忽大忽小
+        const windLfo = ctx.createOscillator();
+        windLfo.frequency.setValueAtTime(0.12, ctx.currentTime);
+        const windLfoGain = ctx.createGain();
+        windLfoGain.gain.setValueAtTime(0.05, ctx.currentTime);
+        windLfo.connect(windLfoGain);
+        windLfoGain.connect(windGain.gain);
+
+        windSource.connect(windFilter);
         windFilter.connect(windGain);
         windGain.connect(ctx.destination);
-        windNoise.start();
+        windSource.start();
+        windLfo.start();
 
-        // --- 緩慢低頻呼吸起伏層 (約 4.5 秒一呼一吸) ---
-        const breathOsc = ctx.createOscillator();
-        const breathGain = ctx.createGain();
-        breathOsc.type = 'sine';
-        breathOsc.frequency.setValueAtTime(65, ctx.currentTime); // 沉悶胸腔共振
+        // --- 身歷其境的抽氣/吐氣動態喉音（循環真實呼吸聲）---
+        function loopBreathCycle() {
+          if (!ambientStarted) return;
+          const now = ctx.currentTime;
+          const breathNoiseDur = 4.2; // 一吸一呼週期
+          const bBuffer = ctx.createBuffer(1, ctx.sampleRate * breathNoiseDur, ctx.sampleRate);
+          const bData = bBuffer.getChannelData(0);
+          for (let i = 0; i < bData.length; i++) {
+            bData[i] = Math.random() * 2 - 1;
+          }
 
-        // 調變增益營造潮湧
-        const lfo = ctx.createOscillator();
-        lfo.frequency.setValueAtTime(0.22, ctx.currentTime); // 0.22Hz 約 4.5 秒週期
-        const lfoGain = ctx.createGain();
-        lfoGain.gain.setValueAtTime(0.045, ctx.currentTime);
+          const bSrc = ctx.createBufferSource();
+          bSrc.buffer = bBuffer;
 
-        breathGain.gain.setValueAtTime(0.05, ctx.currentTime);
-        lfo.connect(breathGain.gain);
+          // 帶通濾波模擬氣流摩擦氣管
+          const bFilter = ctx.createBiquadFilter();
+          bFilter.type = 'bandpass';
+          bFilter.Q.setValueAtTime(3.2, now);
+          bFilter.frequency.setValueAtTime(680, now);
+          bFilter.frequency.linearRampToValueAtTime(850, now + 1.6); // 吸氣音頻上升
+          bFilter.frequency.linearRampToValueAtTime(520, now + 3.8); // 吐氣沉悶下降
 
-        breathOsc.connect(breathGain);
-        breathGain.connect(ctx.destination);
-        breathOsc.start();
-        lfo.start();
+          const bGain = ctx.createGain();
+          bGain.gain.setValueAtTime(0.001, now);
+          // 吸氣 (Inhale)
+          bGain.gain.linearRampToValueAtTime(0.12, now + 1.4);
+          bGain.gain.linearRampToValueAtTime(0.02, now + 2.0);
+          // 吐氣 (Exhale)
+          bGain.gain.linearRampToValueAtTime(0.09, now + 2.8);
+          bGain.gain.linearRampToValueAtTime(0.001, now + 4.1);
 
-        // --- 微弱心跳脈動層 (每分鐘約 55 下) ---
+          bSrc.connect(bFilter);
+          bFilter.connect(bGain);
+          bGain.connect(ctx.destination);
+
+          bSrc.start(now);
+          bSrc.stop(now + breathNoiseDur);
+
+          setTimeout(loopBreathCycle, 4400);
+        }
+        loopBreathCycle();
+
+        // --- 微弱心跳脈動層 (lub-dub) ---
         function triggerHeartbeatPulse() {
           if (!ambientStarted) return;
           const now = ctx.currentTime;
-          const pulseOsc = ctx.createOscillator();
-          const pulseGain = ctx.createGain();
 
-          pulseOsc.type = 'sine';
-          pulseOsc.frequency.setValueAtTime(45, now);
-          pulseOsc.frequency.exponentialRampToValueAtTime(30, now + 0.18);
+          const pOsc = ctx.createOscillator();
+          const pGain = ctx.createGain();
+          pOsc.type = 'sine';
+          pOsc.frequency.setValueAtTime(45, now);
+          pOsc.frequency.exponentialRampToValueAtTime(28, now + 0.18);
 
-          pulseGain.gain.setValueAtTime(0.001, now);
-          pulseGain.gain.linearRampToValueAtTime(0.12, now + 0.04);
-          pulseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          pGain.gain.setValueAtTime(0.001, now);
+          pGain.gain.linearRampToValueAtTime(0.16, now + 0.04);
+          pGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
-          pulseOsc.connect(pulseGain);
-          pulseGain.connect(ctx.destination);
-          pulseOsc.start(now);
-          pulseOsc.stop(now + 0.23);
+          pOsc.connect(pGain);
+          pGain.connect(ctx.destination);
+          pOsc.start(now);
+          pOsc.stop(now + 0.23);
 
-          // 模擬雙重跳動 (lub-dub)
           setTimeout(() => {
             const now2 = ctx.currentTime;
             const pOsc2 = ctx.createOscillator();
             const pGain2 = ctx.createGain();
             pOsc2.type = 'sine';
-            pOsc2.frequency.setValueAtTime(40, now2);
+            pOsc2.frequency.setValueAtTime(38, now2);
             pGain2.gain.setValueAtTime(0.001, now2);
-            pGain2.gain.linearRampToValueAtTime(0.08, now2 + 0.04);
+            pGain2.gain.linearRampToValueAtTime(0.11, now2 + 0.04);
             pGain2.gain.exponentialRampToValueAtTime(0.001, now2 + 0.2);
             pOsc2.connect(pGain2);
             pGain2.connect(ctx.destination);
@@ -655,14 +683,14 @@
             pOsc2.stop(now2 + 0.21);
           }, 240);
 
-          setTimeout(triggerHeartbeatPulse, 1100);
+          setTimeout(triggerHeartbeatPulse, 1200);
         }
         triggerHeartbeatPulse();
 
       } catch(e) {}
     }
 
-    // 2. YouTube BGM 控制
+    // 2. YouTube BGM
     let ytPlayer = null;
     let ytPlayerReady = false;
 
@@ -689,9 +717,7 @@
     };
 
     function startAllAudio() {
-      // 啟動合成白噪音
       startProceduralAmbient();
-      // 啟動 YouTube BGM
       if (ytPlayer && ytPlayerReady) {
         try {
           ytPlayer.playVideo();
@@ -699,7 +725,7 @@
       }
     }
 
-    // 翻書聲
+    // 翻書脆音
     function playPageTurnSound() {
       try {
         const audioCtx = getAudioContext();
@@ -732,62 +758,125 @@
       } catch (e) {}
     }
 
-    // 回理智鐘聲
+    // 3. 掉 San 惡魔山羊怪厲嘶叫（Goat Bleat / Shriek）
+    function playGoatShriekSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const duration = 1.35;
+
+        // 雙音調調變震盪器模擬山羊喉音與走音顫音
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const tremolo = ctx.createOscillator();
+        const tremoloGain = ctx.createGain();
+        const mainGain = ctx.createGain();
+
+        osc1.type = 'sawtooth';
+        osc2.type = 'triangle';
+
+        // 頻率急劇走音滑落（惡魔化山羊聲）
+        osc1.frequency.setValueAtTime(420, now);
+        osc1.frequency.linearRampToValueAtTime(560, now + 0.25);
+        osc1.frequency.exponentialRampToValueAtTime(170, now + duration);
+
+        osc2.frequency.setValueAtTime(435, now);
+        osc2.frequency.linearRampToValueAtTime(580, now + 0.25);
+        osc2.frequency.exponentialRampToValueAtTime(160, now + duration);
+
+        // 山羊叫的急促喉部顫抖 (8.5Hz Tremolo)
+        tremolo.type = 'sine';
+        tremolo.frequency.setValueAtTime(8.5, now);
+        tremoloGain.gain.setValueAtTime(0.4, now);
+
+        mainGain.gain.setValueAtTime(0.01, now);
+        mainGain.gain.linearRampToValueAtTime(0.26, now + 0.12);
+        mainGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        // 濾波器營造乾癟嘶啞感
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(900, now);
+        filter.Q.setValueAtTime(3.0, now);
+
+        tremolo.connect(tremoloGain);
+        tremoloGain.connect(mainGain.gain);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(mainGain);
+        mainGain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        tremolo.start(now);
+        osc1.stop(now + duration);
+        osc2.stop(now + duration);
+        tremolo.stop(now + duration);
+      } catch(e) {}
+    }
+
+    // 4. 回 San 更悠揚深遠的鐘聲（多重管鐘諧波與 5.5 秒殘響衰減）
     function playSanityRecoveryBellSound() {
       try {
         const audioCtx = getAudioContext();
         const now = audioCtx.currentTime;
+        const decay = 5.5;
 
-        const osc1 = audioCtx.createOscillator();
-        const osc2 = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
+        // 基音 (329.63Hz - E4)
+        const fundamental = 329.63;
+        const harmonics = [1, 2.01, 3.03, 4.2];
+        const harmonicGains = [0.26, 0.16, 0.08, 0.03];
 
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(432, now);
-        osc1.frequency.exponentialRampToValueAtTime(430, now + 3.0);
+        harmonics.forEach((h, index) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
 
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(864, now);
-        osc2.frequency.exponentialRampToValueAtTime(860, now + 2.5);
+          osc.type = index % 2 === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(fundamental * h, now);
+          osc.frequency.exponentialRampToValueAtTime(fundamental * h * 0.995, now + decay);
 
-        gainNode.gain.setValueAtTime(0.001, now);
-        gainNode.gain.linearRampToValueAtTime(0.28, now + 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(harmonicGains[index], now + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.00005, now + decay);
 
-        osc1.connect(gainNode);
-        osc2.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
 
-        osc1.start(now);
-        osc2.start(now);
-        osc1.stop(now + 3.2);
-        osc2.stop(now + 3.2);
+          osc.start(now);
+          osc.stop(now + decay);
+        });
       } catch (e) {}
     }
 
-    // 小酒館碰杯喧嘩音效
+    // 5. 酒吧熱鬧喧嘩音效（3.2秒，蓋過BGM再平滑弱化入環境）
     function playTavernCheerSound() {
       try {
         const audioCtx = getAudioContext();
         const now = audioCtx.currentTime;
+        const tavernDur = 3.2;
 
-        const clink = audioCtx.createOscillator();
-        const clinkGain = audioCtx.createGain();
-        clink.type = 'sine';
-        clink.frequency.setValueAtTime(1760, now);
-        clink.frequency.exponentialRampToValueAtTime(880, now + 0.35);
-        clinkGain.gain.setValueAtTime(0.18, now);
-        clinkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-        clink.connect(clinkGain);
-        clinkGain.connect(audioCtx.destination);
-        clink.start(now);
-        clink.stop(now + 0.35);
+        // 連續碰杯清脆聲 (Glass Clinks)
+        const clinkTimes = [0.05, 0.55, 1.2, 1.9];
+        clinkTimes.forEach(offset => {
+          const clink = audioCtx.createOscillator();
+          const clinkGain = audioCtx.createGain();
+          clink.type = 'sine';
+          clink.frequency.setValueAtTime(1850 + Math.random()*200, now + offset);
+          clink.frequency.exponentialRampToValueAtTime(950, now + offset + 0.3);
+          clinkGain.gain.setValueAtTime(0.24, now + offset);
+          clinkGain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.3);
+          clink.connect(clinkGain);
+          clinkGain.connect(audioCtx.destination);
+          clink.start(now + offset);
+          clink.stop(now + offset + 0.3);
+        });
 
-        const cheerDur = 1.4;
-        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * cheerDur, audioCtx.sampleRate);
+        // 多人歡呼混雜人聲麥酒泡沫層（高聲量壓場）
+        const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * tavernDur, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
         for (let i = 0; i < buffer.length; i++) {
-          data[i] = (Math.random() * 2 - 1) * 0.7;
+          data[i] = (Math.random() * 2 - 1) * 0.9;
         }
 
         const cheerSrc = audioCtx.createBufferSource();
@@ -795,21 +884,22 @@
 
         const cheerFilter = audioCtx.createBiquadFilter();
         cheerFilter.type = 'lowpass';
-        cheerFilter.frequency.setValueAtTime(550, now);
-        cheerFilter.frequency.linearRampToValueAtTime(900, now + 0.5);
-        cheerFilter.frequency.linearRampToValueAtTime(400, now + cheerDur);
+        cheerFilter.frequency.setValueAtTime(600, now);
+        cheerFilter.frequency.linearRampToValueAtTime(1100, now + 0.8);
+        cheerFilter.frequency.linearRampToValueAtTime(450, now + tavernDur);
 
         const cheerGain = audioCtx.createGain();
         cheerGain.gain.setValueAtTime(0.01, now);
-        cheerGain.gain.linearRampToValueAtTime(0.22, now + 0.2);
-        cheerGain.gain.exponentialRampToValueAtTime(0.001, now + cheerDur);
+        cheerGain.gain.linearRampToValueAtTime(0.38, now + 0.3); // 明顯蓋過 BGM
+        cheerGain.gain.setValueAtTime(0.35, now + 1.8);
+        cheerGain.gain.exponentialRampToValueAtTime(0.001, now + tavernDur); // 平滑漸弱
 
         cheerSrc.connect(cheerFilter);
         cheerFilter.connect(cheerGain);
         cheerGain.connect(audioCtx.destination);
 
         cheerSrc.start(now);
-        cheerSrc.stop(now + cheerDur);
+        cheerSrc.stop(now + tavernDur);
       } catch (e) {}
     }
 
@@ -847,7 +937,6 @@
       }
     }
 
-    // 點擊啟動旅程（直接播放所有音效）
     function startNewJourney() {
       startAllAudio();
       playPageTurnSound();
@@ -896,7 +985,7 @@
       setTimeout(() => toast.classList.remove('show'), 2200);
     }
 
-    // 劇本節點庫
+    // 劇本節點
     const storyNodes = {
       node_intro: {
         showNotes: true,
@@ -1006,6 +1095,7 @@
         ]
       },
 
+      // 修正：沖刷
       node_ask: {
         showNotes: false,
         text: `：請問，這座鎮子叫什麼名字？
@@ -1014,7 +1104,7 @@
 
 ：這裡啊。
 
-旅人空靈的聲音乾澀如枯葉生裂摩擦，在說出名字前又戛然而止，他抬起青白的手指，指向你腳邊的石磚，青苔覆蓋的磚縫間，一個被雨水衝刷得幾乎模糊的刻痕漸漸清晰。再抬頭時，小徑上只剩飄落的花瓣，腳步聲卻仍在你耳邊迴響。
+旅人空靈的聲音乾澀如枯葉生裂摩擦，在說出名字前又戛然而止，他抬起青白的手指，指向你腳邊的石磚，青苔覆蓋的磚縫間，一個被雨水沖刷得幾乎模糊的刻痕漸漸清晰。再抬頭時，小徑上只剩飄落的花瓣，腳步聲卻仍在你耳邊迴響。
 
 <span class="hallucinate">Saudade.</span>
 
@@ -1079,6 +1169,7 @@
         ]
       },
 
+      // 修正：老古堡段落空行恢復
       node_inn_room: {
         showNotes: false,
         text: `最後還是索夫羅尼替你解了圍，他微微一笑，說了聲感謝你們的熱情，又對調酒師打了個照面，一個女侍點點頭，轉身領你們上了二樓。樓上是與酒吧相通的旅館，一條長廊連接數間舊木門，他為你打開盡頭那間客房。能見著太陽呢，曬太陽對身體好。索夫羅尼如是說。房間雖簡樸卻整潔，床鋪上疊著針織毯子，胡桃木書桌上擺著一小瓶風乾的迷迭香，與酒館相同款式的黃銅燈盞在窗邊投下柔和的光暈。
@@ -1097,6 +1188,7 @@
 
 3. **老古堡**（The Old Estate）
 老古堡，建在小鎮東邊的丘陵上，去往老古堡的路十分細窄，除去古堡的傭人們，平時鮮少會有人去，那地方有些歷久彌新的傳說，聽說有時夜裏會傳來羊叫聲啦，聽說有許多小孩會在窗邊盯著人看，聽說古堡的主人——現今的小公爵，身上帶著惡魔的詛咒等等，也有人說他即是撒旦惡魔之子。
+
 我不告誡你千萬別去什麼地方，物極必反，人們總是會因為好奇心——一再使自己陷入險境。不過要記得，與白祈堂差不多，見不到太陽的日子就別靠近老古堡，就算你非常非常好奇，也千萬別去。
 
 語畢，索夫羅尼凝視了你幾秒，想看看你是否真的聽進去了，最後拍了拍你的肩膀，關上木門，聲音隨著他下樓的腳步聲逐漸遠去模糊。
@@ -1202,6 +1294,8 @@
       if (impact.isRecovery) {
         playSanityRecoveryBellSound();
       } else {
+        // 扣 San 時播放山羊叫聲與翻頁摩擦
+        playGoatShriekSound();
         playPageTurnSound();
       }
 
