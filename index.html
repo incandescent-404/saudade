@@ -761,63 +761,20 @@
     }
 
     // 3. 掉 San 惡魔山羊怪厲嘶叫（Goat Bleat / Shriek）
+// 扣 San 時隨機播放：山羊尖叫 或 嬰兒哭聲
     function playGoatShriekSound() {
       try {
-        const ctx = getAudioContext();
-        const now = ctx.currentTime;
-        const duration = 1.35;
+        // 50% 機率是羊叫，50% 機率是嬰兒哭
+        const soundList = ['goat.mp3', 'baby.mp3'];
+        const randomSound = soundList[Math.floor(Math.random() * soundList.length)];
 
-        // 雙音調調變震盪器模擬山羊喉音與走音顫音
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
-        const tremolo = ctx.createOscillator();
-        const tremoloGain = ctx.createGain();
-        const mainGain = ctx.createGain();
-
-        osc1.type = 'sawtooth';
-        osc2.type = 'triangle';
-
-        // 頻率急劇走音滑落（惡魔化山羊聲）
-        osc1.frequency.setValueAtTime(420, now);
-        osc1.frequency.linearRampToValueAtTime(560, now + 0.25);
-        osc1.frequency.exponentialRampToValueAtTime(170, now + duration);
-
-        osc2.frequency.setValueAtTime(435, now);
-        osc2.frequency.linearRampToValueAtTime(580, now + 0.25);
-        osc2.frequency.exponentialRampToValueAtTime(160, now + duration);
-
-        // 山羊叫的急促喉部顫抖 (8.5Hz Tremolo)
-        tremolo.type = 'sine';
-        tremolo.frequency.setValueAtTime(8.5, now);
-        tremoloGain.gain.setValueAtTime(0.4, now);
-
-        mainGain.gain.setValueAtTime(0.01, now);
-        mainGain.gain.linearRampToValueAtTime(0.26, now + 0.12);
-        mainGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-        // 濾波器營造乾癟嘶啞感
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(900, now);
-        filter.Q.setValueAtTime(3.0, now);
-
-        tremolo.connect(tremoloGain);
-        tremoloGain.connect(mainGain.gain);
-
-        osc1.connect(filter);
-        osc2.connect(filter);
-        filter.connect(mainGain);
-        mainGain.connect(ctx.destination);
-
-        osc1.start(now);
-        osc2.start(now);
-        tremolo.start(now);
-        osc1.stop(now + duration);
-        osc2.stop(now + duration);
-        tremolo.stop(now + duration);
-      } catch(e) {}
+        const sanImpactAudio = new Audio(randomSound);
+        sanImpactAudio.volume = 0.85; // 音量大小 (0.0 ~ 1.0)
+        sanImpactAudio.play();
+      } catch(e) {
+        console.log('音訊播放受限:', e);
+      }
     }
-
     // 4. 回 San 更悠揚深遠的鐘聲（多重管鐘諧波與 5.5 秒殘響衰減）
     function playSanityRecoveryBellSound() {
       try {
