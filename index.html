@@ -64,6 +64,32 @@
       position: relative;
     }
 
+    /* 左上角人物檔案按鈕（預設隱藏，解鎖後浮現） */
+    .dossier-nav-btn {
+      position: absolute;
+      top: 14px;
+      left: 20px;
+      font-size: 11px;
+      color: var(--lucidity-purple);
+      text-shadow: 0 0 5px var(--lucidity-glow);
+      background: rgba(179, 136, 255, 0.08);
+      border: 1px solid rgba(179, 136, 255, 0.3);
+      padding: 2px 8px;
+      border-radius: 2px;
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      display: none;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+    .dossier-nav-btn:hover {
+      background: rgba(179, 136, 255, 0.2);
+      box-shadow: 0 0 8px var(--lucidity-glow);
+    }
+    .dossier-nav-btn.unlocked {
+      display: inline-block;
+    }
+
     .hud-header {
       display: flex;
       justify-content: flex-end;
@@ -355,6 +381,98 @@
       color: #0b0c10;
     }
 
+    /* 人物檔案專用彈窗手帳樣式 */
+    .dossier-modal-box {
+      width: 92%;
+      max-width: 520px;
+      max-height: 85vh;
+      background: #0f1016;
+      border: 1.5px solid var(--lucidity-purple);
+      box-shadow: 0 0 25px rgba(179, 136, 255, 0.35);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .dossier-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed rgba(179, 136, 255, 0.3);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+
+    .dossier-title {
+      font-size: 14px;
+      color: var(--lucidity-purple);
+      letter-spacing: 1px;
+    }
+
+    .dossier-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--pixel-font);
+      font-size: 14px;
+    }
+    .dossier-close-btn:hover {
+      color: #fff;
+    }
+
+    .dossier-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .dossier-tab {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #2d323f;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      font-size: 12px;
+      font-family: var(--pixel-font);
+      cursor: pointer;
+      border-radius: 2px;
+    }
+    .dossier-tab.active {
+      border-color: var(--lucidity-purple);
+      color: var(--lucidity-purple);
+      background: rgba(179, 136, 255, 0.1);
+    }
+
+    .dossier-content {
+      overflow-y: auto;
+      padding-right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .memory-item {
+      background: rgba(0,0,0,0.3);
+      border-left: 2px solid var(--lucidity-purple);
+      padding: 8px 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .memory-title {
+      color: var(--lucidity-purple);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+    .memory-text {
+      color: #d1d2d6;
+    }
+    .memory-locked {
+      color: var(--text-muted);
+      letter-spacing: 2px;
+    }
+
     .glitch-storm-overlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -459,6 +577,9 @@
   </div>
 
   <div class="terminal-container">
+    <!-- 左上角人物檔案按鈕 -->
+    <button id="dossierNavBtn" class="dossier-nav-btn" onclick="openDossierModal()">[ 人物檔案 ]</button>
+
     <div class="hud-header">
       <div id="hudDisplay" class="hud-display">【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>
     </div>
@@ -493,12 +614,25 @@
     </div>
   </div>
 
+  <!-- 狀態異動彈窗 -->
   <div id="impactModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-impact" id="modalValueChange"></div>
       <div class="status-badge" id="modalStatusBadge"></div>
       <div class="modal-lore" id="modalLoreText"></div>
       <button class="modal-confirm-btn" id="modalConfirmBtn" onclick="closeImpactModal()">[ 理清思緒⋯⋯ ]</button>
+    </div>
+  </div>
+
+  <!-- 人物檔案專屬彈窗手帳 -->
+  <div id="dossierModal" class="modal-overlay">
+    <div class="dossier-modal-box">
+      <div class="dossier-header">
+        <span class="dossier-title">◆ [ 人物檔案 ]</span>
+        <button class="dossier-close-btn" onclick="closeDossierModal()">[ × 闔上 ]</button>
+      </div>
+      <div class="dossier-tabs" id="dossierTabs"></div>
+      <div class="dossier-content" id="dossierContent"></div>
     </div>
   </div>
 
@@ -521,7 +655,8 @@
       corpus: 100,
       lucidity: 100,
       maxCorpus: 100,
-      maxLucidity: 100
+      maxLucidity: 100,
+      dossierUnlocked: false
     };
 
     function updateHud() {
@@ -546,7 +681,7 @@
       return globalAudioCtx;
     }
 
-    // 1. 實體呼吸白噪音控制（修復循環與音量動態調變）
+    // 1. 實體呼吸白噪音控制
     let breathAudioInstance = null;
     let breathModTimer = null;
 
@@ -564,11 +699,10 @@
           });
         }
 
-        // 動態隨機音量調變
         if (!breathModTimer) {
           function adjustBreathVolume() {
             if (breathAudioInstance && !breathAudioInstance.paused) {
-              const targetVol = Math.random() * 0.40 + 0.20; // 0.20 到 0.60 之間浮動
+              const targetVol = Math.random() * 0.40 + 0.20;
               const currentVol = breathAudioInstance.volume;
               const step = (targetVol - currentVol) / 20;
               let count = 0;
@@ -701,7 +835,7 @@
       } catch (e) {}
     }
 
-    // 6. 酒吧音效控制（修復 2 秒平滑淡出與全域重置停止）
+    // 6. 酒吧音效控制
     let barAudioInstance = null;
     let barFadeTimer = null;
 
@@ -728,7 +862,7 @@
         if (barFadeTimer) clearInterval(barFadeTimer);
         const fadeAudio = barAudioInstance;
         const stepTime = 50;
-        const totalSteps = 40; // 2000ms / 50ms = 40 步
+        const totalSteps = 40;
         const stepVol = fadeAudio.volume / totalSteps;
 
         barFadeTimer = setInterval(() => {
@@ -784,6 +918,91 @@
       } catch (e) {}
     }
 
+    // 8. 人物檔案系統資料與控制
+    const characterDossiers = {
+      sofroni: {
+        name: "索夫羅尼",
+        memories: [
+          { id: "01", text: "身著暗紅色剪裁禮服，舉止優雅的老派紳士。在霧氣迷濛的街口替你引路，並為你在小鎮酒館安排了住處。嘴角總是掛著溫和的笑意。" },
+          { id: "02", text: "他說在這裡「報答人情要比金幣管用多了」。酒館裡的所有鎮民似乎都對他十分熟稔且信服。" },
+          { id: "03", text: "████████████████████（尚未觀測）", locked: true }
+        ]
+      },
+      winster: {
+        name: "溫斯特",
+        memories: [
+          { id: "01", text: "聖所・白祈堂的聖修士。傳聞他如陽光般溫和親切，晨禱能使最頑固的無神論者落淚。白祈堂亦設有除罪室供人告解。" },
+          { id: "02", text: "在小鎮有句傳言：夜幕鐘響過後，連大天使都不敢打擾這位修士先生的私人時光。" },
+          { id: "03", text: "████████████████████（尚未觀測）", locked: true }
+        ]
+      },
+      lorrain: {
+        name: "洛林",
+        memories: [
+          { id: "01", text: "長駐於書房亭的寫詩作家。腿腳不便無法長途跋涉，熱衷於與新來的旅者交流，喜歡聆聽也喜歡訴說各類真假難辨的故事。" },
+          { id: "02", text: "████████████████████（尚未觀測）", locked: true }
+        ]
+      },
+      duke: {
+        name: "小公爵",
+        memories: [
+          { id: "01", text: "東邊丘陵老古堡的主人。傳聞其身上背負著惡魔詛咒，甚至有人稱其為撒旦之子。古堡深夜偶爾會傳來詭異的羊叫聲與窗邊窺視的視線。" },
+          { id: "02", text: "████████████████████（尚未觀測）", locked: true }
+        ]
+      }
+    };
+
+    let activeCharacterKey = 'sofroni';
+
+    function openDossierModal() {
+      playPageTurnSound();
+      renderDossierTabs();
+      renderDossierContent(activeCharacterKey);
+      const modal = document.getElementById('dossierModal');
+      if (modal) modal.classList.add('active');
+    }
+
+    function closeDossierModal() {
+      playPageTurnSound();
+      const modal = document.getElementById('dossierModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function renderDossierTabs() {
+      const container = document.getElementById('dossierTabs');
+      if (!container) return;
+      container.innerHTML = '';
+      Object.keys(characterDossiers).forEach(key => {
+        const char = characterDossiers[key];
+        const btn = document.createElement('button');
+        btn.className = `dossier-tab ${key === activeCharacterKey ? 'active' : ''}`;
+        btn.textContent = char.name;
+        btn.onclick = () => {
+          activeCharacterKey = key;
+          renderDossierTabs();
+          renderDossierContent(key);
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function renderDossierContent(key) {
+      const char = characterDossiers[key];
+      const container = document.getElementById('dossierContent');
+      if (!container || !char) return;
+      container.innerHTML = '';
+
+      char.memories.forEach(mem => {
+        const item = document.createElement('div');
+        item.className = 'memory-item';
+        item.innerHTML = `
+          <div class="memory-title">[ 記憶 ${mem.id} ]</div>
+          <div class="memory-text ${mem.locked ? 'memory-locked' : ''}">${mem.text}</div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
     function checkSaveExistence() {
       try {
         const savedData = localStorage.getItem('sau_game_save');
@@ -800,6 +1019,10 @@
       playPageTurnSound();
       state.corpus = 100;
       state.lucidity = 100;
+      state.dossierUnlocked = false;
+      const navBtn = document.getElementById('dossierNavBtn');
+      if (navBtn) navBtn.classList.remove('unlocked');
+
       document.getElementById('loadingScreen').style.display = 'none';
       document.getElementById('gameContent').style.display = 'block';
       loadNode('node_intro');
@@ -818,6 +1041,14 @@
         state.currentNode = saved.currentNode || 'node_intro';
         state.corpus = saved.corpus ?? 100;
         state.lucidity = saved.lucidity ?? 100;
+        state.dossierUnlocked = saved.dossierUnlocked ?? false;
+
+        const navBtn = document.getElementById('dossierNavBtn');
+        if (navBtn) {
+          if (state.dossierUnlocked) navBtn.classList.add('unlocked');
+          else navBtn.classList.remove('unlocked');
+        }
+
         playPageTurnSound();
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('gameContent').style.display = 'block';
@@ -834,6 +1065,7 @@
           currentNode: state.currentNode,
           corpus: state.corpus,
           lucidity: state.lucidity,
+          dossierUnlocked: state.dossierUnlocked,
           time: new Date().toISOString()
         };
         localStorage.setItem('sau_game_save', JSON.stringify(saveData));
@@ -1126,6 +1358,22 @@
           stopTavernSoundImmediately();
         }
 
+        // 當玩家初次抵達旅館客房（索夫羅尼介紹完景點）時解鎖人物檔案
+        if (nodeKey === 'node_inn_room' && !state.dossierUnlocked) {
+          state.dossierUnlocked = true;
+          const navBtn = document.getElementById('dossierNavBtn');
+          if (navBtn) navBtn.classList.add('unlocked');
+
+          // 跳出解鎖提示彈窗
+          setTimeout(() => {
+            showImpactModal({
+              title: "已解鎖 [ 人物檔案 ]",
+              lore: "你注視著甚麼，甚麼就正在注視著你 👁\n\n【已開啟左上方觀測記錄。你可於終端隨時翻閱旅途中所汲取的人物記憶碎片。】",
+              btnLabel: "[ 默記於心⋯⋯ ]"
+            });
+          }, 300);
+        }
+
         const notesBox = document.getElementById('notesBox');
         if (notesBox) {
           notesBox.style.display = node.showNotes ? 'block' : 'none';
@@ -1177,6 +1425,8 @@
       try {
         if (impact.isRecovery) {
           playSanityRecoveryBellSound();
+        } else if (impact.title && impact.title.includes("人物檔案")) {
+          playPageTurnSound();
         } else {
           playGoatShriekSound();
           playPageTurnSound();
@@ -1231,40 +1481,33 @@
       } catch(e) {}
     }
 
-// 監聽切換 App、螢幕熄滅後重新喚醒
+    // 監聽切換 App、螢幕熄滅後重新喚醒
     document.addEventListener('visibilitychange', function() {
       if (!document.hidden) {
         resumeAllAudio();
       }
     });
 
-    // 監聽視窗重新取得焦點（例如從別的應用程式切回來）
     window.addEventListener('focus', function() {
       resumeAllAudio();
     });
 
-    // 玩家重新觸碰/點擊畫面時，若音訊被耳機等外力打斷，自動無感恢復
     document.addEventListener('pointerdown', function() {
       resumeAllAudio();
     }, { once: false });
 
-    // 統一恢復所有被外力中斷的音訊
     function resumeAllAudio() {
-      // 1. 喚醒 Web Audio API
       if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
         globalAudioCtx.resume().catch(() => {});
       }
 
-      // 2. 喚醒呼吸音軌（如果遊戲已經開始且被系統暫停）
       if (breathAudioInstance && breathAudioInstance.paused && state.currentNode !== 'node_intro') {
         breathAudioInstance.play().catch(() => {});
       }
 
-      // 3. 喚醒 YouTube 背景音樂
       if (ytPlayer && ytPlayerReady && typeof ytPlayer.getPlayerState === 'function') {
         try {
           const ytState = ytPlayer.getPlayerState();
-          // 若處於暫停 (2) 或緩衝中斷狀態，重新喚醒播放
           if (ytState === 2 || ytState === -1) {
             ytPlayer.playVideo();
           }
