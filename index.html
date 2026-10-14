@@ -1231,6 +1231,47 @@
       } catch(e) {}
     }
 
+// 監聽切換 App、螢幕熄滅後重新喚醒
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        resumeAllAudio();
+      }
+    });
+
+    // 監聽視窗重新取得焦點（例如從別的應用程式切回來）
+    window.addEventListener('focus', function() {
+      resumeAllAudio();
+    });
+
+    // 玩家重新觸碰/點擊畫面時，若音訊被耳機等外力打斷，自動無感恢復
+    document.addEventListener('pointerdown', function() {
+      resumeAllAudio();
+    }, { once: false });
+
+    // 統一恢復所有被外力中斷的音訊
+    function resumeAllAudio() {
+      // 1. 喚醒 Web Audio API
+      if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+        globalAudioCtx.resume().catch(() => {});
+      }
+
+      // 2. 喚醒呼吸音軌（如果遊戲已經開始且被系統暫停）
+      if (breathAudioInstance && breathAudioInstance.paused && state.currentNode !== 'node_intro') {
+        breathAudioInstance.play().catch(() => {});
+      }
+
+      // 3. 喚醒 YouTube 背景音樂
+      if (ytPlayer && ytPlayerReady && typeof ytPlayer.getPlayerState === 'function') {
+        try {
+          const ytState = ytPlayer.getPlayerState();
+          // 若處於暫停 (2) 或緩衝中斷狀態，重新喚醒播放
+          if (ytState === 2 || ytState === -1) {
+            ytPlayer.playVideo();
+          }
+        } catch(e) {}
+      }
+    }
+
     window.onload = function() {
       checkSaveExistence();
     };
