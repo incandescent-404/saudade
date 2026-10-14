@@ -41,7 +41,6 @@
       overflow-x: hidden;
     }
 
-    /* CRT 微弱掃描線質感 */
     body::before {
       content: " ";
       position: fixed;
@@ -65,7 +64,6 @@
       position: relative;
     }
 
-    /* 右上角 HUD 狀態監視器 */
     .hud-header {
       display: flex;
       justify-content: flex-end;
@@ -84,7 +82,6 @@
       letter-spacing: 0.5px;
     }
 
-    /* 初始亂碼載入區 */
     .loading-screen {
       text-align: center;
       padding: 40px 10px;
@@ -131,7 +128,6 @@
       display: none;
     }
 
-    /* 遊戲主區塊 */
     .game-content {
       display: none;
     }
@@ -161,16 +157,17 @@
       text-shadow: 0 0 5px var(--lucidity-glow);
       font-weight: bold;
     }
-.color-winster { color: #FFC0CB; font-weight: bold; }
+
+    .color-winster { color: #FFC0CB; font-weight: bold; }
     .color-lorrain { color: #6b88c2; font-weight: bold; }
     .color-duke    { color: #512a7d; font-weight: bold; text-shadow: 0 0 5px rgba(81, 42, 125, 0.6); }
+
     .story-paragraph {
       margin-bottom: 18px;
       white-space: pre-line;
       text-align: justify;
     }
 
-    /* 致幻晃動效果 */
     .hallucinate {
       display: inline-block;
       font-weight: bold;
@@ -180,7 +177,6 @@
       letter-spacing: 1px;
     }
 
-    /* 水漬暈染特效 */
     .water-ink-blur {
       display: inline-block;
       font-style: italic;
@@ -222,7 +218,6 @@
       letter-spacing: 0.3px;
     }
 
-    /* 選項列表 */
     .choices-group {
       margin-top: 24px;
       display: flex;
@@ -251,7 +246,6 @@
       box-shadow: 0 0 10px rgba(179, 136, 255, 0.2);
     }
 
-    /* 右下角操作導航 */
     .terminal-footer-nav {
       position: absolute;
       bottom: 12px;
@@ -277,7 +271,6 @@
       text-shadow: 0 0 4px var(--lucidity-glow);
     }
 
-    /* 存檔回饋提示浮條 */
     .toast-msg {
       position: fixed;
       bottom: 24px;
@@ -300,7 +293,6 @@
       opacity: 1;
     }
 
-    /* 理智衝擊/回復 彈窗 Modal */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -363,7 +355,6 @@
       color: #0b0c10;
     }
 
-    /* 全螢幕崩解雜訊風暴遮罩 */
     .glitch-storm-overlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -463,19 +454,15 @@
 </head>
 <body>
 
-  <!-- 隱藏 YouTube 播放器 -->
   <div id="ytPlayerContainer">
     <div id="ytAudioPlayer"></div>
   </div>
 
   <div class="terminal-container">
-    
-    <!-- 右上角 HUD -->
     <div class="hud-header">
       <div id="hudDisplay" class="hud-display">【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>
     </div>
 
-    <!-- 1. 載入破面文字界面 -->
     <div id="loadingScreen" class="loading-screen">
       <div class="glitch-text" onclick="startNewJourney()">
         L҉̢͚̀͂͡ǫ̶͖҇͗̎a̸͔̱͖͑̈͜͡ḑ̶̗̙̜͗̑͞i̴̢͖̔͠n҈͔̄̚͢͡g̷̛̜̜̰͑̊̿͜…̵̨̮̳̌̀̓͞m҈̯̳̟̆̕͢o̵̱̳͈̍̕͢d҉̨̜̽͗͐͞ę̵̣҇͗ ǫ̵̰̋̎͡n҉̡̰̋͡.̸̨̲̮҇̿
@@ -486,9 +473,7 @@
       </div>
     </div>
 
-    <!-- 2. 主文本場景容器 -->
     <div id="gameContent" class="game-content">
-      <!-- 注意事項：僅在第一頁顯示 -->
       <div id="notesBox" class="notes-box">
         <div class="notes-title">◆ Notes for the Wanderer.</div>
         <p><span class="term-highlight">Corpus</span> 與 <span class="term-highlight">Lucidity</span>，分別對應著您的血量與理智，請小心，任何一項數值過低，皆可能致使你⋯⋯受到一些不可預防的危險。</p>
@@ -498,22 +483,16 @@
         </ul>
       </div>
 
-      <!-- 動態故事段落區 -->
       <div id="storySection"></div>
-
-      <!-- 選項區 -->
       <div id="choicesSection" class="choices-group"></div>
 
-      <!-- 右下角導航與存檔條 -->
       <div class="terminal-footer-nav">
         <button class="footer-action-btn" onclick="triggerLoopReset()">[ 甦醒 ]</button>
         <button class="footer-action-btn" onclick="saveGamePrompt()">[ 你要離開了嗎？ ]</button>
       </div>
     </div>
-
   </div>
 
-  <!-- 3. 理智/狀態變動彈窗 -->
   <div id="impactModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-impact" id="modalValueChange"></div>
@@ -523,7 +502,6 @@
     </div>
   </div>
 
-  <!-- 4. 全螢幕崩解雜訊風暴 -->
   <div id="glitchStorm" class="glitch-storm-overlay">
     <div class="storm-zalgo">
       T̸̜͒h̴̙͐e̵̮̾ ̷͚̈́w̷̦̾ä̵̖́y̵̱͌ ̵̦͌b̵̖̈́a̸̺͌c̵̝̎k̸̩̐ ̸̦̈́ḏ̶̈́o̵̡͐ë̵̖́ș̶̈́ ̵̺͐ṉ̶̈́o̷̺͐ẗ̶̤́ ̵̱̈́e̶̖̓ẍ̵̺́ḯ̸̦s̵̖̈́ṯ̶̈́.̸̦̈́<br>
@@ -535,7 +513,6 @@
 
   <div id="toastMsg" class="toast-msg">記憶已刻入終端。</div>
 
-  <!-- 載入 YouTube API -->
   <script src="https://www.youtube.com/iframe_api"></script>
 
   <script>
@@ -565,50 +542,7 @@
       return globalAudioCtx;
     }
 
-    // 1. 純代碼即時合成：身歷其境的「細微呼吸聲」+「呼嘯風聲」+「低頻微弱心率」
-    let ambientStarted = false;
-    function startProceduralAmbient() {
-      if (ambientStarted) return;
-      ambientStarted = true;
-
-      try {
-        const ctx = getAudioContext();
-
-        // --- 呼嘯風聲白噪音 ---
-        const windBufferSize = ctx.sampleRate * 5;
-        const windBuffer = ctx.createBuffer(1, windBufferSize, ctx.sampleRate);
-        const windData = windBuffer.getChannelData(0);
-        for (let i = 0; i < windBufferSize; i++) {
-          windData[i] = Math.random() * 2 - 1;
-        }
-
-        const windSource = ctx.createBufferSource();
-        windSource.buffer = windBuffer;
-        windSource.loop = true;
-
-        const windFilter = ctx.createBiquadFilter();
-        windFilter.type = 'bandpass';
-        windFilter.frequency.setValueAtTime(280, ctx.currentTime);
-        windFilter.Q.setValueAtTime(4.5, ctx.currentTime);
-
-        const windGain = ctx.createGain();
-        windGain.gain.setValueAtTime(0.09, ctx.currentTime);
-
-        // 讓風聲緩慢忽大忽小
-        const windLfo = ctx.createOscillator();
-        windLfo.frequency.setValueAtTime(0.12, ctx.currentTime);
-        const windLfoGain = ctx.createGain();
-        windLfoGain.gain.setValueAtTime(0.05, ctx.currentTime);
-        windLfo.connect(windLfoGain);
-        windLfoGain.connect(windGain.gain);
-
-        windSource.connect(windFilter);
-        windFilter.connect(windGain);
-        windGain.connect(ctx.destination);
-        windSource.start();
-        windLfo.start();
-
-// 實體呼吸白噪音控制
+    // 1. 實體呼吸白噪音控制
     let breathAudioInstance = null;
     let breathModulationTimer = null;
 
@@ -616,13 +550,11 @@
       if (breathAudioInstance) return;
 
       try {
-        // 載入呼吸音檔並設為無縫循環
         breathAudioInstance = new Audio('breath.mp3');
         breathAudioInstance.loop = true;
-        breathAudioInstance.volume = 0.25; // 初始基準低音量
+        breathAudioInstance.volume = 0.25;
         breathAudioInstance.play();
 
-        // 平滑漸變音量函數（2 秒內過渡到目標音量）
         function fadeVolumeTo(targetVol, duration = 2000) {
           if (!breathAudioInstance) return;
           const startVol = breathAudioInstance.volume;
@@ -641,93 +573,17 @@
           }, stepTime);
         }
 
-        // 隨機起伏調變器：每隔 4 ~ 8 秒隨機改變一次音量大小
         function scheduleNextVolumeShift() {
-          // 隨機在 0.15 (細微不可聞) 到 0.55 (近在耳畔抽氣) 之間擺動
           const nextVolume = Math.random() * 0.40 + 0.15;
           fadeVolumeTo(nextVolume, 2200);
-
-          // 下一次音量變化的隨機間隔（4 到 9 秒之間）
           const nextInterval = (Math.random() * 5 + 4) * 1000;
           breathModulationTimer = setTimeout(scheduleNextVolumeShift, nextInterval);
         }
 
-        // 啟動動態音量調變
         scheduleNextVolumeShift();
-
       } catch (e) {
         console.log('呼吸音訊播放受限:', e);
       }
-    }
-
-          // 帶通濾波模擬氣流摩擦氣管
-          const bFilter = ctx.createBiquadFilter();
-          bFilter.type = 'bandpass';
-          bFilter.Q.setValueAtTime(3.2, now);
-          bFilter.frequency.setValueAtTime(680, now);
-          bFilter.frequency.linearRampToValueAtTime(850, now + 1.6); // 吸氣音頻上升
-          bFilter.frequency.linearRampToValueAtTime(520, now + 3.8); // 吐氣沉悶下降
-
-          const bGain = ctx.createGain();
-          bGain.gain.setValueAtTime(0.001, now);
-          // 吸氣 (Inhale)
-          bGain.gain.linearRampToValueAtTime(0.12, now + 1.4);
-          bGain.gain.linearRampToValueAtTime(0.02, now + 2.0);
-          // 吐氣 (Exhale)
-          bGain.gain.linearRampToValueAtTime(0.09, now + 2.8);
-          bGain.gain.linearRampToValueAtTime(0.001, now + 4.1);
-
-          bSrc.connect(bFilter);
-          bFilter.connect(bGain);
-          bGain.connect(ctx.destination);
-
-          bSrc.start(now);
-          bSrc.stop(now + breathNoiseDur);
-
-          setTimeout(loopBreathCycle, 4400);
-        }
-        loopBreathCycle();
-
-        // --- 微弱心跳脈動層 (lub-dub) ---
-        function triggerHeartbeatPulse() {
-          if (!ambientStarted) return;
-          const now = ctx.currentTime;
-
-          const pOsc = ctx.createOscillator();
-          const pGain = ctx.createGain();
-          pOsc.type = 'sine';
-          pOsc.frequency.setValueAtTime(45, now);
-          pOsc.frequency.exponentialRampToValueAtTime(28, now + 0.18);
-
-          pGain.gain.setValueAtTime(0.001, now);
-          pGain.gain.linearRampToValueAtTime(0.16, now + 0.04);
-          pGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-
-          pOsc.connect(pGain);
-          pGain.connect(ctx.destination);
-          pOsc.start(now);
-          pOsc.stop(now + 0.23);
-
-          setTimeout(() => {
-            const now2 = ctx.currentTime;
-            const pOsc2 = ctx.createOscillator();
-            const pGain2 = ctx.createGain();
-            pOsc2.type = 'sine';
-            pOsc2.frequency.setValueAtTime(38, now2);
-            pGain2.gain.setValueAtTime(0.001, now2);
-            pGain2.gain.linearRampToValueAtTime(0.11, now2 + 0.04);
-            pGain2.gain.exponentialRampToValueAtTime(0.001, now2 + 0.2);
-            pOsc2.connect(pGain2);
-            pGain2.connect(ctx.destination);
-            pOsc2.start(now2);
-            pOsc2.stop(now2 + 0.21);
-          }, 240);
-
-          setTimeout(triggerHeartbeatPulse, 1200);
-        }
-        triggerHeartbeatPulse();
-
-      } catch(e) {}
     }
 
     // 2. YouTube BGM
@@ -765,7 +621,7 @@
       }
     }
 
-    // 翻書脆音
+    // 3. 翻書聲
     function playPageTurnSound() {
       try {
         const audioCtx = getAudioContext();
@@ -798,29 +654,25 @@
       } catch (e) {}
     }
 
-    // 3. 掉 San 惡魔山羊怪厲嘶叫（Goat Bleat / Shriek）
-// 扣 San 時隨機播放：山羊尖叫 或 嬰兒哭聲
+    // 4. 隨機播放山羊叫或嬰兒哭聲
     function playGoatShriekSound() {
       try {
-        // 50% 機率是羊叫，50% 機率是嬰兒哭
         const soundList = ['goat.mp3', 'baby.mp3'];
         const randomSound = soundList[Math.floor(Math.random() * soundList.length)];
-
-        const sanImpactAudio = new Audio(randomSound);
-        sanImpactAudio.volume = 0.85; // 音量大小 (0.0 ~ 1.0)
-        sanImpactAudio.play();
+        const sanAudio = new Audio(randomSound);
+        sanAudio.volume = 0.85;
+        sanAudio.play();
       } catch(e) {
-        console.log('音訊播放受限:', e);
+        console.log('扣San音訊受限:', e);
       }
     }
-    // 4. 回 San 更悠揚深遠的鐘聲（多重管鐘諧波與 5.5 秒殘響衰減）
+
+    // 5. 悠揚鐘聲
     function playSanityRecoveryBellSound() {
       try {
         const audioCtx = getAudioContext();
         const now = audioCtx.currentTime;
         const decay = 5.5;
-
-        // 基音 (329.63Hz - E4)
         const fundamental = 329.63;
         const harmonics = [1, 2.01, 3.03, 4.2];
         const harmonicGains = [0.26, 0.16, 0.08, 0.03];
@@ -828,7 +680,6 @@
         harmonics.forEach((h, index) => {
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
-
           osc.type = index % 2 === 0 ? 'sine' : 'triangle';
           osc.frequency.setValueAtTime(fundamental * h, now);
           osc.frequency.exponentialRampToValueAtTime(fundamental * h * 0.995, now + decay);
@@ -839,22 +690,22 @@
 
           osc.connect(gain);
           gain.connect(audioCtx.destination);
-
           osc.start(now);
           osc.stop(now + decay);
         });
       } catch (e) {}
     }
 
-    // 5. 酒吧熱鬧喧嘩音效（3.2秒，蓋過BGM再平滑弱化入環境）
-    // 進入酒吧時播放實體音訊（音量設為 0.95，比 BGM 突出）
+    // 6. 酒吧音效控制與 2 秒淡出
+    let barAudioInstance = null;
+
     function playTavernCheerSound() {
       try {
         if (!barAudioInstance) {
           barAudioInstance = new Audio('bar.mp3');
-          barAudioInstance.loop = true; // 在玩家停留時持續氛圍循環
+          barAudioInstance.loop = true;
         }
-        barAudioInstance.volume = 0.95; // 音量大於 BGM
+        barAudioInstance.volume = 0.95;
         barAudioInstance.currentTime = 0;
         barAudioInstance.play();
       } catch (e) {
@@ -862,12 +713,11 @@
       }
     }
 
-    // 點下「何去何從」後，在 2 秒內漸變平滑消失
     function fadeOutTavernSound() {
       if (!barAudioInstance) return;
       const fadeAudio = barAudioInstance;
-      const fadeDuration = 2000; // 2 秒 (2000 毫秒)
-      const stepTime = 50; // 每 50ms 遞減一次
+      const fadeDuration = 2000;
+      const stepTime = 50;
       const volumeStep = fadeAudio.volume / (fadeDuration / stepTime);
 
       const fadeInterval = setInterval(() => {
@@ -881,7 +731,7 @@
       }, stepTime);
     }
 
-    // 崩解雜訊音
+    // 7. 崩解雜訊音
     function playGlitchNoise() {
       try {
         const audioCtx = getAudioContext();
@@ -963,15 +813,14 @@
       setTimeout(() => toast.classList.remove('show'), 2200);
     }
 
-    // 劇本節點
     const storyNodes = {
       node_intro: {
         showNotes: true,
-        text: `你甦醒時，鞋底踩在一片濕軟的落葉上。朦朧的白霧籠罩在四周，好似一片被浸透的舊信箋，前方與退路、夢與虛實、森林與墓土一同被攪碎。你不記得自己為甚麼會在這裡了，也不記得最後一段清醒的思緒是在何時，也許是、是⋯⋯那張地圖？那張殘破的、印著模糊名字與焦黑墨漬的，就好似血跡一樣的地圖。
+        text: `你甦醒時，鞋底踩在一片濕軟的落葉上。朦朧的白霧籠罩著四周，好似一片被浸透的舊信箋，前方與退路、夢與虛實、森林與墓土一同被攪碎。你不記得自己為甚麼會在這裡，也不記得最後一段清醒的對話是在何時，也許是、是⋯⋯那張地圖？那張殘破的、印著模糊名字與焦黑墨漬，就好似血跡一樣的地圖。
 
 <div class="status-badge">【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>
 
-斷垣殘壁後，前方浮現一道小徑，在鞋面觸及碎石礫時，你聽見遠處傳來鐘聲，聲音緩慢、遙遠，帶著氤氳濕潮的黏腥，你瞇起眼睛，不怎麼遲疑的，提起背包走了過去。
+斷垣殘壁後，前方浮現一道小徑，在鞋面觸及碎石礫時，你聽見遠處傳來鐘聲，那聲音緩慢、遙遠，帶著氤氳濕潮的黏腥，你瞇起眼睛，不怎麼遲疑的，提起背包走了過去。
 
 你走過一段青苔磚舖成的石子路，來到湖邊，一座古樸的小鎮正佇立於聚散的霧後，頂上飄著溫暖色澤的細煙。走進小鎮，你瞧見有人走近，似乎是此處的居民，大多衣著樸素，神色親切，早已知道你會來到此地那般，居民們心領神會地替你提起行李、遞來熱茶、撫去你因周轉奔波沾上肩頭的灰塵。
 
