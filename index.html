@@ -608,19 +608,57 @@
         windSource.start();
         windLfo.start();
 
-        // --- 身歷其境的抽氣/吐氣動態喉音（循環真實呼吸聲）---
-        function loopBreathCycle() {
-          if (!ambientStarted) return;
-          const now = ctx.currentTime;
-          const breathNoiseDur = 4.2; // 一吸一呼週期
-          const bBuffer = ctx.createBuffer(1, ctx.sampleRate * breathNoiseDur, ctx.sampleRate);
-          const bData = bBuffer.getChannelData(0);
-          for (let i = 0; i < bData.length; i++) {
-            bData[i] = Math.random() * 2 - 1;
-          }
+// 實體呼吸白噪音控制
+    let breathAudioInstance = null;
+    let breathModulationTimer = null;
 
-          const bSrc = ctx.createBufferSource();
-          bSrc.buffer = bBuffer;
+    function startProceduralAmbient() {
+      if (breathAudioInstance) return;
+
+      try {
+        // 載入呼吸音檔並設為無縫循環
+        breathAudioInstance = new Audio('breath.mp3');
+        breathAudioInstance.loop = true;
+        breathAudioInstance.volume = 0.25; // 初始基準低音量
+        breathAudioInstance.play();
+
+        // 平滑漸變音量函數（2 秒內過渡到目標音量）
+        function fadeVolumeTo(targetVol, duration = 2000) {
+          if (!breathAudioInstance) return;
+          const startVol = breathAudioInstance.volume;
+          const diff = targetVol - startVol;
+          const steps = 30;
+          const stepTime = duration / steps;
+          let currentStep = 0;
+
+          const fadeInterval = setInterval(() => {
+            currentStep++;
+            const progress = currentStep / steps;
+            breathAudioInstance.volume = Math.max(0.05, Math.min(0.65, startVol + diff * progress));
+            if (currentStep >= steps) {
+              clearInterval(fadeInterval);
+            }
+          }, stepTime);
+        }
+
+        // 隨機起伏調變器：每隔 4 ~ 8 秒隨機改變一次音量大小
+        function scheduleNextVolumeShift() {
+          // 隨機在 0.15 (細微不可聞) 到 0.55 (近在耳畔抽氣) 之間擺動
+          const nextVolume = Math.random() * 0.40 + 0.15;
+          fadeVolumeTo(nextVolume, 2200);
+
+          // 下一次音量變化的隨機間隔（4 到 9 秒之間）
+          const nextInterval = (Math.random() * 5 + 4) * 1000;
+          breathModulationTimer = setTimeout(scheduleNextVolumeShift, nextInterval);
+        }
+
+        // 啟動動態音量調變
+        scheduleNextVolumeShift();
+
+      } catch (e) {
+        console.log('呼吸音訊播放受限:', e);
+      }
+    }
 
           // 帶通濾波模擬氣流摩擦氣管
           const bFilter = ctx.createBiquadFilter();
