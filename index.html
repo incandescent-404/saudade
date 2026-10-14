@@ -525,71 +525,67 @@
     };
 
     function updateHud() {
-      const hud = document.getElementById('hudDisplay');
-      if (hud) {
-        hud.textContent = `【 Corpus: ${state.corpus}/${state.maxCorpus} ｜ Lucidity: ${state.lucidity}/${state.maxLucidity} 】`;
-      }
+      try {
+        const hud = document.getElementById('hudDisplay');
+        if (hud) {
+          hud.textContent = `【 Corpus: ${state.corpus}/${state.maxCorpus} ｜ Lucidity: ${state.lucidity}/${state.maxLucidity} 】`;
+        }
+      } catch(e) {}
     }
 
     let globalAudioCtx = null;
     function getAudioContext() {
-      if (!globalAudioCtx) {
-        globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (globalAudioCtx.state === 'suspended') {
-        globalAudioCtx.resume();
-      }
+      try {
+        if (!globalAudioCtx) {
+          globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+          globalAudioCtx.resume();
+        }
+      } catch(e) {}
       return globalAudioCtx;
     }
 
-    // 1. 實體呼吸白噪音控制
+    // 1. 實體呼吸白噪音控制（修復循環與音量動態調變）
     let breathAudioInstance = null;
-    let breathModulationTimer = null;
+    let breathModTimer = null;
 
     function startProceduralAmbient() {
-      if (breathAudioInstance) return;
-
       try {
-        breathAudioInstance = new Audio('breath.mp3');
-        breathAudioInstance.loop = true;
-        breathAudioInstance.volume = 0.25;
-        const playPromise = breathAudioInstance.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(() => {});
+        if (!breathAudioInstance) {
+          breathAudioInstance = new Audio('breath.mp3');
+          breathAudioInstance.loop = true;
+          breathAudioInstance.volume = 0.35;
+        }
+        const p = breathAudioInstance.play();
+        if (p !== undefined) {
+          p.catch(err => {
+            console.warn('呼吸音訊尚未解鎖或無法載入:', err);
+          });
         }
 
-        function fadeVolumeTo(targetVol, duration = 2000) {
-          if (!breathAudioInstance) return;
-          try {
-            const startVol = breathAudioInstance.volume;
-            const diff = targetVol - startVol;
-            const steps = 30;
-            const stepTime = duration / steps;
-            let currentStep = 0;
-
-            const fadeInterval = setInterval(() => {
-              currentStep++;
-              const progress = currentStep / steps;
-              if (breathAudioInstance) {
-                breathAudioInstance.volume = Math.max(0.05, Math.min(0.65, startVol + diff * progress));
-              }
-              if (currentStep >= steps) {
-                clearInterval(fadeInterval);
-              }
-            }, stepTime);
-          } catch (err) {}
+        // 動態隨機音量調變
+        if (!breathModTimer) {
+          function adjustBreathVolume() {
+            if (breathAudioInstance && !breathAudioInstance.paused) {
+              const targetVol = Math.random() * 0.40 + 0.20; // 0.20 到 0.60 之間浮動
+              const currentVol = breathAudioInstance.volume;
+              const step = (targetVol - currentVol) / 20;
+              let count = 0;
+              const fade = setInterval(() => {
+                count++;
+                if (breathAudioInstance) {
+                  breathAudioInstance.volume = Math.max(0.1, Math.min(0.7, breathAudioInstance.volume + step));
+                }
+                if (count >= 20) clearInterval(fade);
+              }, 100);
+            }
+            breathModTimer = setTimeout(adjustBreathVolume, (Math.random() * 4 + 4) * 1000);
+          }
+          breathModTimer = setTimeout(adjustBreathVolume, 3000);
         }
-
-        function scheduleNextVolumeShift() {
-          const nextVolume = Math.random() * 0.40 + 0.15;
-          fadeVolumeTo(nextVolume, 2200);
-          const nextInterval = (Math.random() * 5 + 4) * 1000;
-          breathModulationTimer = setTimeout(scheduleNextVolumeShift, nextInterval);
-        }
-
-        scheduleNextVolumeShift();
       } catch (e) {
-        console.log('呼吸音訊播放受限:', e);
+        console.warn('呼吸音訊啟動異常:', e);
       }
     }
 
@@ -598,33 +594,34 @@
     let ytPlayerReady = false;
 
     window.onYouTubeIframeAPIReady = function() {
-      ytPlayer = new YT.Player('ytAudioPlayer', {
-        height: '1',
-        width: '1',
-        videoId: 'mu1dVlu9KIo',
-        playerVars: {
-          autoplay: 0,
-          loop: 1,
-          playlist: 'mu1dVlu9KIo',
-          controls: 0,
-          showinfo: 0,
-          modestbranding: 1
-        },
-        events: {
-          onReady: function(event) {
-            ytPlayerReady = true;
-            try { event.target.setVolume(55); } catch(err) {}
+      try {
+        ytPlayer = new YT.Player('ytAudioPlayer', {
+          height: '1',
+          width: '1',
+          videoId: 'mu1dVlu9KIo',
+          playerVars: {
+            autoplay: 0,
+            loop: 1,
+            playlist: 'mu1dVlu9KIo',
+            controls: 0,
+            showinfo: 0,
+            modestbranding: 1
+          },
+          events: {
+            onReady: function(event) {
+              ytPlayerReady = true;
+              try { event.target.setVolume(55); } catch(err) {}
+            }
           }
-        }
-      });
+        });
+      } catch(e) {}
     };
 
     function startAllAudio() {
+      getAudioContext();
       startProceduralAmbient();
       if (ytPlayer && ytPlayerReady) {
-        try {
-          ytPlayer.playVideo();
-        } catch(e) {}
+        try { ytPlayer.playVideo(); } catch(e) {}
       }
     }
 
@@ -632,6 +629,7 @@
     function playPageTurnSound() {
       try {
         const audioCtx = getAudioContext();
+        if (!audioCtx) return;
         const bufferSize = audioCtx.sampleRate * 0.18;
         const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
         const data = buffer.getChannelData(0);
@@ -661,7 +659,7 @@
       } catch (e) {}
     }
 
-    // 4. 隨機播放山羊叫或嬰兒哭聲
+    // 4. 隨機山羊叫或嬰兒哭聲
     function playGoatShriekSound() {
       try {
         const soundList = ['goat.mp3', 'baby.mp3'];
@@ -670,15 +668,14 @@
         sanAudio.volume = 0.85;
         const p = sanAudio.play();
         if (p !== undefined) p.catch(() => {});
-      } catch(e) {
-        console.log('扣San音訊受限:', e);
-      }
+      } catch(e) {}
     }
 
     // 5. 悠揚鐘聲
     function playSanityRecoveryBellSound() {
       try {
         const audioCtx = getAudioContext();
+        if (!audioCtx) return;
         const now = audioCtx.currentTime;
         const decay = 5.5;
         const fundamental = 329.63;
@@ -698,18 +695,22 @@
 
           osc.connect(gain);
           gain.connect(audioCtx.destination);
-
           osc.start(now);
           osc.stop(now + decay);
         });
       } catch (e) {}
     }
 
-    // 6. 酒吧音效控制與 2 秒淡出
+    // 6. 酒吧音效控制（修復 2 秒平滑淡出與全域重置停止）
     let barAudioInstance = null;
+    let barFadeTimer = null;
 
     function playTavernCheerSound() {
       try {
+        if (barFadeTimer) {
+          clearInterval(barFadeTimer);
+          barFadeTimer = null;
+        }
         if (!barAudioInstance) {
           barAudioInstance = new Audio('bar.mp3');
           barAudioInstance.loop = true;
@@ -718,33 +719,49 @@
         barAudioInstance.currentTime = 0;
         const p = barAudioInstance.play();
         if (p !== undefined) p.catch(() => {});
-      } catch (e) {
-        console.log('酒吧音訊播放受限:', e);
-      }
+      } catch (e) {}
     }
 
     function fadeOutTavernSound() {
       if (!barAudioInstance) return;
-      const fadeAudio = barAudioInstance;
-      const fadeDuration = 2000;
-      const stepTime = 50;
-      const volumeStep = fadeAudio.volume / (fadeDuration / stepTime);
+      try {
+        if (barFadeTimer) clearInterval(barFadeTimer);
+        const fadeAudio = barAudioInstance;
+        const stepTime = 50;
+        const totalSteps = 40; // 2000ms / 50ms = 40 步
+        const stepVol = fadeAudio.volume / totalSteps;
 
-      const fadeInterval = setInterval(() => {
-        if (fadeAudio.volume > volumeStep) {
-          fadeAudio.volume -= volumeStep;
-        } else {
-          fadeAudio.volume = 0;
-          fadeAudio.pause();
-          clearInterval(fadeInterval);
-        }
-      }, stepTime);
+        barFadeTimer = setInterval(() => {
+          if (fadeAudio.volume > stepVol) {
+            fadeAudio.volume = Math.max(0, fadeAudio.volume - stepVol);
+          } else {
+            fadeAudio.volume = 0;
+            fadeAudio.pause();
+            fadeAudio.currentTime = 0;
+            clearInterval(barFadeTimer);
+            barFadeTimer = null;
+          }
+        }, stepTime);
+      } catch(e) {}
+    }
+
+    function stopTavernSoundImmediately() {
+      if (barFadeTimer) {
+        clearInterval(barFadeTimer);
+        barFadeTimer = null;
+      }
+      if (barAudioInstance) {
+        barAudioInstance.pause();
+        barAudioInstance.currentTime = 0;
+        barAudioInstance.volume = 0;
+      }
     }
 
     // 7. 崩解雜訊音
     function playGlitchNoise() {
       try {
         const audioCtx = getAudioContext();
+        if (!audioCtx) return;
         const now = audioCtx.currentTime;
         const dur = 1.6;
         const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
@@ -768,14 +785,17 @@
     }
 
     function checkSaveExistence() {
-      const savedData = localStorage.getItem('sau_game_save');
-      const loadBtn = document.getElementById('loadSaveBtn');
-      if (savedData && loadBtn) {
-        loadBtn.style.display = 'inline-block';
-      }
+      try {
+        const savedData = localStorage.getItem('sau_game_save');
+        const loadBtn = document.getElementById('loadSaveBtn');
+        if (savedData && loadBtn) {
+          loadBtn.style.display = 'inline-block';
+        }
+      } catch(e) {}
     }
 
     function startNewJourney() {
+      stopTavernSoundImmediately();
       startAllAudio();
       playPageTurnSound();
       state.corpus = 100;
@@ -786,10 +806,14 @@
     }
 
     function loadSavedGame() {
+      stopTavernSoundImmediately();
       startAllAudio();
-      const savedRaw = localStorage.getItem('sau_game_save');
-      if (!savedRaw) return;
       try {
+        const savedRaw = localStorage.getItem('sau_game_save');
+        if (!savedRaw) {
+          startNewJourney();
+          return;
+        }
         const saved = JSON.parse(savedRaw);
         state.currentNode = saved.currentNode || 'node_intro';
         state.corpus = saved.corpus ?? 100;
@@ -805,22 +829,26 @@
     }
 
     function saveGamePrompt() {
-      const saveData = {
-        currentNode: state.currentNode,
-        corpus: state.corpus,
-        lucidity: state.lucidity,
-        time: new Date().toISOString()
-      };
-      localStorage.setItem('sau_game_save', JSON.stringify(saveData));
-      showToast('【 觀測進度已封存。下次可於終端讀取記憶 】');
-      checkSaveExistence();
+      try {
+        const saveData = {
+          currentNode: state.currentNode,
+          corpus: state.corpus,
+          lucidity: state.lucidity,
+          time: new Date().toISOString()
+        };
+        localStorage.setItem('sau_game_save', JSON.stringify(saveData));
+        showToast('【 觀測進度已封存。下次可於終端讀取記憶 】');
+        checkSaveExistence();
+      } catch(e) {}
     }
 
     function showToast(text) {
-      const toast = document.getElementById('toastMsg');
-      toast.textContent = text;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2200);
+      try {
+        const toast = document.getElementById('toastMsg');
+        toast.textContent = text;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2200);
+      } catch(e) {}
     }
 
     const storyNodes = {
@@ -1084,103 +1112,123 @@
     let pendingTargetNode = null;
 
     function loadNode(nodeKey) {
-      const node = storyNodes[nodeKey];
-      if (!node) return;
+      try {
+        const node = storyNodes[nodeKey];
+        if (!node) return;
 
-      state.currentNode = nodeKey;
-      updateHud();
+        state.currentNode = nodeKey;
+        updateHud();
 
-      if (node.onEnterSound === 'tavern') {
-        playTavernCheerSound();
-      }
+        // 確保非酒吧頁面時，酒吧音效會停下
+        if (node.onEnterSound === 'tavern') {
+          playTavernCheerSound();
+        } else if (nodeKey !== 'node_follow_sofroni') {
+          stopTavernSoundImmediately();
+        }
 
-      const notesBox = document.getElementById('notesBox');
-      notesBox.style.display = node.showNotes ? 'block' : 'none';
+        const notesBox = document.getElementById('notesBox');
+        if (notesBox) {
+          notesBox.style.display = node.showNotes ? 'block' : 'none';
+        }
 
-      const storyContainer = document.getElementById('storySection');
-      const choicesContainer = document.getElementById('choicesSection');
+        const storyContainer = document.getElementById('storySection');
+        const choicesContainer = document.getElementById('choicesSection');
 
-      storyContainer.innerHTML = `<div class="story-paragraph">${node.text}</div>`;
-      choicesContainer.innerHTML = '';
+        if (storyContainer) {
+          storyContainer.innerHTML = `<div class="story-paragraph">${node.text}</div>`;
+        }
+        if (choicesContainer) {
+          choicesContainer.innerHTML = '';
+          node.choices.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.innerHTML = c.label;
+            btn.onclick = () => handleChoiceClick(c);
+            choicesContainer.appendChild(btn);
+          });
+        }
 
-      node.choices.forEach(c => {
-        const btn = document.createElement('button');
-        btn.className = 'choice-btn';
-        btn.innerHTML = c.label;
-        btn.onclick = () => handleChoiceClick(c);
-        choicesContainer.appendChild(btn);
-      });
-
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch(e) {}
     }
 
     function handleChoiceClick(choice) {
-      if (choice.onSelect) {
-        choice.onSelect();
-      }
+      try {
+        if (choice.onSelect) {
+          choice.onSelect();
+        }
 
-      if (choice.isResetLoop) {
-        triggerLoopReset();
-        return;
-      }
+        if (choice.isResetLoop) {
+          triggerLoopReset();
+          return;
+        }
 
-      if (choice.impact) {
-        pendingTargetNode = choice.target;
-        showImpactModal(choice.impact);
-      } else {
-        playPageTurnSound();
-        loadNode(choice.target);
-      }
+        if (choice.impact) {
+          pendingTargetNode = choice.target;
+          showImpactModal(choice.impact);
+        } else {
+          playPageTurnSound();
+          loadNode(choice.target);
+        }
+      } catch(e) {}
     }
 
     function showImpactModal(impact) {
-      if (impact.isRecovery) {
-        playSanityRecoveryBellSound();
-      } else {
-        playGoatShriekSound();
-        playPageTurnSound();
-      }
+      try {
+        if (impact.isRecovery) {
+          playSanityRecoveryBellSound();
+        } else {
+          playGoatShriekSound();
+          playPageTurnSound();
+        }
 
-      const modal = document.getElementById('impactModal');
-      const valueElem = document.getElementById('modalValueChange');
-      const badgeElem = document.getElementById('modalStatusBadge');
-      const loreElem = document.getElementById('modalLoreText');
-      const confirmBtn = document.getElementById('modalConfirmBtn');
+        const modal = document.getElementById('impactModal');
+        const valueElem = document.getElementById('modalValueChange');
+        const badgeElem = document.getElementById('modalStatusBadge');
+        const loreElem = document.getElementById('modalLoreText');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
 
-      if (typeof impact.diffLucidity === 'number') {
-        state.lucidity = Math.min(state.maxLucidity, Math.max(0, state.lucidity + impact.diffLucidity));
-      }
+        if (typeof impact.diffLucidity === 'number') {
+          state.lucidity = Math.min(state.maxLucidity, Math.max(0, state.lucidity + impact.diffLucidity));
+        }
 
-      updateHud();
+        updateHud();
 
-      valueElem.textContent = impact.title || "狀態異動";
-      badgeElem.textContent = `【 Corpus: ${state.corpus}/${state.maxCorpus} ｜ Lucidity: ${state.lucidity}/${state.maxLucidity} 】`;
-      loreElem.textContent = impact.lore || "";
-      confirmBtn.textContent = impact.btnLabel || "[ 確認 ]";
+        if (valueElem) valueElem.textContent = impact.title || "狀態異動";
+        if (badgeElem) badgeElem.textContent = `【 Corpus: ${state.corpus}/${state.maxCorpus} ｜ Lucidity: ${state.lucidity}/${state.maxLucidity} 】`;
+        if (loreElem) loreElem.textContent = impact.lore || "";
+        if (confirmBtn) confirmBtn.textContent = impact.btnLabel || "[ 確認 ]";
 
-      modal.classList.add('active');
+        if (modal) modal.classList.add('active');
+      } catch(e) {}
     }
 
     function closeImpactModal() {
-      playPageTurnSound();
-      document.getElementById('impactModal').classList.remove('active');
-      if (pendingTargetNode) {
-        loadNode(pendingTargetNode);
-        pendingTargetNode = null;
-      }
+      try {
+        playPageTurnSound();
+        const modal = document.getElementById('impactModal');
+        if (modal) modal.classList.remove('active');
+        if (pendingTargetNode) {
+          loadNode(pendingTargetNode);
+          pendingTargetNode = null;
+        }
+      } catch(e) {}
     }
 
     function triggerLoopReset() {
-      playGlitchNoise();
-      const storm = document.getElementById('glitchStorm');
-      storm.classList.add('active');
+      try {
+        stopTavernSoundImmediately();
+        playGlitchNoise();
+        const storm = document.getElementById('glitchStorm');
+        if (storm) storm.classList.add('active');
 
-      setTimeout(() => {
-        storm.classList.remove('active');
-        state.corpus = 100;
-        state.lucidity = 100;
-        loadNode('node_intro');
-      }, 1900);
+        setTimeout(() => {
+          if (storm) storm.classList.remove('active');
+          state.corpus = 100;
+          state.lucidity = 100;
+          loadNode('node_intro');
+        }, 1900);
+      } catch(e) {}
     }
 
     window.onload = function() {
