@@ -702,7 +702,7 @@
         if (!breathModTimer) {
           function adjustBreathVolume() {
             if (breathAudioInstance && !breathAudioInstance.paused) {
-              const targetVol = Math.random() * 0.40 + 0.20;
+              const targetVol = Math.random() * 0.25 + 0.10;
               const currentVol = breathAudioInstance.volume;
               const step = (targetVol - currentVol) / 20;
               let count = 0;
