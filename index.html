@@ -553,24 +553,31 @@
         breathAudioInstance = new Audio('breath.mp3');
         breathAudioInstance.loop = true;
         breathAudioInstance.volume = 0.25;
-        breathAudioInstance.play();
+        const playPromise = breathAudioInstance.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {});
+        }
 
         function fadeVolumeTo(targetVol, duration = 2000) {
           if (!breathAudioInstance) return;
-          const startVol = breathAudioInstance.volume;
-          const diff = targetVol - startVol;
-          const steps = 30;
-          const stepTime = duration / steps;
-          let currentStep = 0;
+          try {
+            const startVol = breathAudioInstance.volume;
+            const diff = targetVol - startVol;
+            const steps = 30;
+            const stepTime = duration / steps;
+            let currentStep = 0;
 
-          const fadeInterval = setInterval(() => {
-            currentStep++;
-            const progress = currentStep / steps;
-            breathAudioInstance.volume = Math.max(0.05, Math.min(0.65, startVol + diff * progress));
-            if (currentStep >= steps) {
-              clearInterval(fadeInterval);
-            }
-          }, stepTime);
+            const fadeInterval = setInterval(() => {
+              currentStep++;
+              const progress = currentStep / steps;
+              if (breathAudioInstance) {
+                breathAudioInstance.volume = Math.max(0.05, Math.min(0.65, startVol + diff * progress));
+              }
+              if (currentStep >= steps) {
+                clearInterval(fadeInterval);
+              }
+            }, stepTime);
+          } catch (err) {}
         }
 
         function scheduleNextVolumeShift() {
@@ -606,7 +613,7 @@
         events: {
           onReady: function(event) {
             ytPlayerReady = true;
-            event.target.setVolume(55);
+            try { event.target.setVolume(55); } catch(err) {}
           }
         }
       });
@@ -661,7 +668,8 @@
         const randomSound = soundList[Math.floor(Math.random() * soundList.length)];
         const sanAudio = new Audio(randomSound);
         sanAudio.volume = 0.85;
-        sanAudio.play();
+        const p = sanAudio.play();
+        if (p !== undefined) p.catch(() => {});
       } catch(e) {
         console.log('扣San音訊受限:', e);
       }
@@ -690,6 +698,7 @@
 
           osc.connect(gain);
           gain.connect(audioCtx.destination);
+
           osc.start(now);
           osc.stop(now + decay);
         });
@@ -707,7 +716,8 @@
         }
         barAudioInstance.volume = 0.95;
         barAudioInstance.currentTime = 0;
-        barAudioInstance.play();
+        const p = barAudioInstance.play();
+        if (p !== undefined) p.catch(() => {});
       } catch (e) {
         console.log('酒吧音訊播放受限:', e);
       }
@@ -922,7 +932,6 @@
         ]
       },
 
-      // 修正：沖刷
       node_ask: {
         showNotes: false,
         text: `：請問，這座鎮子叫什麼名字？
@@ -988,19 +997,16 @@
 映入你眼前的，是一處溫暖又昏暗的小空間，暖和燭光裹挾著麥酒香氣撲面而來，橡木吧台上陳列各式貼著泛黃標籤的玻璃瓶，天花板上垂著乾薰衣草束，銅制油燈因著夾道而入的涼風輕輕搖晃著，牆上掛著幾幅老舊油畫與鹿角裝飾。十幾位鎮民散坐在廳內————兩位老人正在角落對弈，幾民下了班的農夫倚著酒桶打盹或談天。
 
 見到你進門，<strong>所有人都笑了</strong>，笑著向你打招呼，他們不急不緩地靠近你，友善親切的打著招呼，就好像你並不是一位初來乍到的旅人，是位早該抵達卻因故遲到的客人。你感到一點不適，並不出於生疏或恐懼，相反的，你竟感到了一絲熟悉，這一切的一切，都過於理所當然而自然了，<span class="hallucinate">你難道就是為了回到此地而抵達嗎？</span>`,
-choices: [
+        choices: [
           {
             label: "【 ➤ 又要，何去何從？ 】",
             target: "node_inn_room",
             onSelect: () => fadeOutTavernSound()
           }
         ]
-            target: "node_inn_room"
-          }
-        ]
       },
 
-node_inn_room: {
+      node_inn_room: {
         showNotes: false,
         text: `最後還是索夫羅尼替你解了圍，他微微一笑，說了聲感謝你們的熱情，又對調酒師打了個照面，一個女侍點點頭，轉身領你們上了二樓。樓上是與酒吧相通的旅館，一條長廊連接數間舊木門，他為你打開盡頭那間客房。能見著太陽呢，曬太陽對身體好。索夫羅尼如是說。房間雖簡樸卻整潔，床鋪上疊著針織毯子，胡桃木書桌上擺著一小瓶風乾的迷迭香，與酒館相同款式的黃銅燈盞在窗邊投下柔和的光暈。
 
@@ -1052,18 +1058,21 @@ node_inn_room: {
 <div class="status-badge">【 篇章待續 】</div>`,
         choices: []
       },
+
       node_pavilion_of_tales: {
         showNotes: false,
         text: `書房亭被修剪整齊的花木環繞，微風拂動層疊的書頁。一位輪椅上的消瘦紳士正低頭專注地提筆紀錄⋯⋯
 <div class="status-badge">【 篇章待續 】</div>`,
         choices: []
       },
+
       node_old_estate: {
         showNotes: false,
         text: `通往丘陵古堡的小路生滿了荊棘與雜草。天幕不知何時黯淡了下來，隱約間，你似乎聽見了羊群尖厲的叫聲⋯⋯
 <div class="status-badge">【 篇章待續 】</div>`,
         choices: []
       },
+
       node_rest_inn: {
         showNotes: false,
         text: `你躺在針織毯子下閉上雙眼。窗外的風聲若有似無，你感覺到床板下傳來規律的、宛如心臟跳動般的微震⋯⋯
@@ -1105,11 +1114,11 @@ node_inn_room: {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-function handleChoiceClick(choice) {
-      // 若選項有自訂觸發回呼（如淡出酒吧音效）
+    function handleChoiceClick(choice) {
       if (choice.onSelect) {
         choice.onSelect();
       }
+
       if (choice.isResetLoop) {
         triggerLoopReset();
         return;
@@ -1128,7 +1137,6 @@ function handleChoiceClick(choice) {
       if (impact.isRecovery) {
         playSanityRecoveryBellSound();
       } else {
-        // 扣 San 時播放山羊叫聲與翻頁摩擦
         playGoatShriekSound();
         playPageTurnSound();
       }
