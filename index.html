@@ -767,7 +767,7 @@
         if (!breathAudioInstance) {
           breathAudioInstance = new Audio('breath.mp3');
           breathAudioInstance.loop = true;
-          breathAudioInstance.volume = 0.30;
+          breathAudioInstance.volume = 0.15;
         }
         const p = breathAudioInstance.play();
         if (p !== undefined) {
@@ -779,7 +779,7 @@
         if (!breathModTimer) {
           function adjustBreathVolume() {
             if (breathAudioInstance && !breathAudioInstance.paused) {
-              const targetVol = Math.random() * 0.30 + 0.15;
+              const targetVol = Math.random() * 0.15 + 0.08;
               const currentVol = breathAudioInstance.volume;
               const step = (targetVol - currentVol) / 20;
               let count = 0;
@@ -870,23 +870,15 @@
       } catch (e) {}
     }
 
-// 4. 隨機山羊叫或嬰兒哭聲（預先載入，避免被瀏覽器吃掉）
-    const goatAudio = new Audio('goat.mp3');
-    const babyAudio = new Audio('baby.mp3');
-    goatAudio.preload = 'auto';
-    babyAudio.preload = 'auto';
-
+    // 4. 隨機山羊叫或嬰兒哭聲
     function playGoatShriekSound() {
       try {
-        const chosen = Math.random() < 0.5 ? goatAudio : babyAudio;
-        chosen.volume = 0.85;
-        chosen.currentTime = 0; // 重置播放進度
-        const p = chosen.play();
-        if (p !== undefined) {
-          p.catch(err => {
-            console.warn('扣San音效播放受阻:', err);
-          });
-        }
+        const soundList = ['goat.mp3', 'baby.mp3'];
+        const randomSound = soundList[Math.floor(Math.random() * soundList.length)];
+        const sanAudio = new Audio(randomSound);
+        sanAudio.volume = 0.85;
+        const p = sanAudio.play();
+        if (p !== undefined) p.catch(() => {});
       } catch(e) {}
     }
 
