@@ -154,6 +154,19 @@
       display: none;
     }
 
+    /* 結局系統按鈕樣式（紅紫漸變告誡色） */
+    .endings-portal-btn {
+      border-color: rgba(255, 82, 82, 0.6);
+      color: #ff8a80;
+      display: none;
+      box-shadow: 0 0 8px rgba(255, 82, 82, 0.2);
+    }
+    .endings-portal-btn:hover {
+      border-color: #ff5252;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(255, 82, 82, 0.45);
+    }
+
     .game-content {
       display: none;
     }
@@ -381,7 +394,7 @@
       color: #0b0c10;
     }
 
-    /* 人物檔案專用彈窗手帳樣式 */
+    /* 手帳彈窗樣式 */
     .dossier-modal-box {
       width: 92%;
       max-width: 520px;
@@ -471,6 +484,57 @@
     .memory-locked {
       color: var(--text-muted);
       letter-spacing: 2px;
+    }
+
+    /* 結局磁條專用樣式 */
+    .ending-list-container {
+      overflow-y: auto;
+      max-height: 60vh;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 6px;
+    }
+
+    .ending-track-item {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid #232733;
+      padding: 10px 14px;
+      border-radius: 2px;
+      transition: all 0.2s ease;
+    }
+
+    .ending-track-item.unlocked {
+      border-color: rgba(179, 136, 255, 0.45);
+      background: rgba(179, 136, 255, 0.06);
+    }
+    .ending-track-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: var(--lucidity-purple);
+      margin-bottom: 4px;
+    }
+    .ending-track-desc {
+      font-size: 12px;
+      color: #b0b3b8;
+      line-height: 1.6;
+    }
+
+    /* 未解鎖的模糊磁條 */
+    .ending-track-item.locked {
+      border-style: dashed;
+      border-color: #2b2e38;
+      background: rgba(10, 10, 15, 0.3);
+      user-select: none;
+    }
+    .ending-track-item.locked .ending-track-title {
+      color: #555a66;
+    }
+    .ending-track-item.locked .ending-track-desc {
+      color: rgba(255, 255, 255, 0.12);
+      filter: blur(3.5px);
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px rgba(0,0,0,0.8);
     }
 
     .glitch-storm-overlay {
@@ -591,6 +655,8 @@
       <div class="start-btn-group">
         <button class="start-btn" onclick="startNewJourney()">[ 我們都在等你回來 ]</button>
         <button id="loadSaveBtn" class="start-btn load-save-btn" onclick="loadSavedGame()">[ 讀取記憶（繼續旅程） ]</button>
+        <!-- 🌟 解鎖結局後出現在首頁的入口 -->
+        <button id="endingsPortalBtn" class="start-btn endings-portal-btn" onclick="openEndingsModal()">[ 那麼，你究竟要往哪裡去 ]</button>
       </div>
     </div>
 
@@ -633,6 +699,17 @@
       </div>
       <div class="dossier-tabs" id="dossierTabs"></div>
       <div class="dossier-content" id="dossierContent"></div>
+    </div>
+  </div>
+
+  <!-- 🌟 結局系統專屬彈窗手帳 -->
+  <div id="endingsModal" class="modal-overlay">
+    <div class="dossier-modal-box">
+      <div class="dossier-header">
+        <span class="dossier-title">◆ [ 那麼，你究竟要往哪裡去 ]</span>
+        <button class="dossier-close-btn" onclick="closeEndingsModal()">[ × 闔上 ]</button>
+      </div>
+      <div id="endingsListContainer" class="ending-list-container"></div>
     </div>
   </div>
 
@@ -681,7 +758,7 @@
       return globalAudioCtx;
     }
 
-    // 1. 實體呼吸白噪音控制
+    // 1. 實體呼吸白噪音控制（音量微調柔和）
     let breathAudioInstance = null;
     let breathModTimer = null;
 
@@ -690,7 +767,7 @@
         if (!breathAudioInstance) {
           breathAudioInstance = new Audio('breath.mp3');
           breathAudioInstance.loop = true;
-          breathAudioInstance.volume = 0.35;
+          breathAudioInstance.volume = 0.30;
         }
         const p = breathAudioInstance.play();
         if (p !== undefined) {
@@ -702,14 +779,14 @@
         if (!breathModTimer) {
           function adjustBreathVolume() {
             if (breathAudioInstance && !breathAudioInstance.paused) {
-              const targetVol = Math.random() * 0.25 + 0.10;
+              const targetVol = Math.random() * 0.30 + 0.15;
               const currentVol = breathAudioInstance.volume;
               const step = (targetVol - currentVol) / 20;
               let count = 0;
               const fade = setInterval(() => {
                 count++;
                 if (breathAudioInstance) {
-                  breathAudioInstance.volume = Math.max(0.1, Math.min(0.7, breathAudioInstance.volume + step));
+                  breathAudioInstance.volume = Math.max(0.05, Math.min(0.4, breathAudioInstance.volume + step));
                 }
                 if (count >= 20) clearInterval(fade);
               }, 100);
@@ -1001,6 +1078,120 @@
           <div class="memory-title">[ 記憶 ${mem.id} ]</div>
           <div class="memory-text ${mem.locked ? 'memory-locked' : ''}">${mem.text}</div>
         `;
+        container.appendChild(item);
+      });
+    }
+
+    // 9. 結局系統資料庫：[ 那麼，你究竟要往哪裡去 ]
+    const totalEndings = [
+      { id: "ED-01", title: "【 終局・落葉永眠 】", desc: "你從未走出這片森林，落葉淹沒了你的靴子，也帶走了你全部的清醒與形體。" },
+      { id: "ED-02", title: "【 終局・異鄉客的茶席 】", desc: "熱茶的溫度滲入四肢，但他們的笑臉再也未曾散去，你成為了酒館裡第二張棋盤前永不離去的對弈者。" },
+      { id: "ED-03", title: "【 終局・鐘聲掐滅之時 】", desc: "雙尖塔在霧中靠攏合十，當最後一記鐘聲被掐斷，你聽見自己的呼吸與小鎮一同歸於死寂。" },
+      { id: "ED-04", title: "【 終局・惡魔的羔羊 】", desc: "丘陵古堡的窗櫺被羊群踏碎，你終於記起了自己為何對這份詛咒如此熟悉。" },
+      { id: "ED-05", title: "【 終局・未竟的夜禱 】", desc: "白天已盡，夜幕低垂。大天使不敢打擾的私人時光裡，你成為了唯一的受害者。" },
+      { id: "ED-06", title: "【 終局・水墨滲化 】", desc: "未觀測的文字被徹底抹除，你的名字融化在泛黃的羊皮紙邊緣。" },
+      { id: "ED-07", title: "【 終局・血債血還 】", desc: "在小鎮，報答人情比金幣管用得多，而你欠下的是無法償還的命。" },
+      { id: "ED-08", title: "【 終局・輪椅上的詩篇 】", desc: "洛林先生翻過新的一頁，將你的皮肉與記憶編撰成了最動人的短詩。" },
+      { id: "ED-09", title: "【 終局・融蝕的容顏 】", desc: "你看不清他們的臉，因為你的五官也在霧氣中蒸發無蹤。" },
+      { id: "ED-10", title: "【 終局・大火漫延之室 】", desc: "你終於回到了那個被烈火焚毀的房間，這次你沒能打開逃生的門。" },
+      { id: "ED-11", title: "【 終局・嬰啼迴響 】", desc: "空蕩的走廊裡，哭聲由遠及近，爬進了你的胸膛深處。" },
+      { id: "ED-12", title: "【 終局・迷霧引渡者 】", desc: "暗紅禮服的衣角拂過地磚，你接過了索夫羅尼遞來的手杖，成了下一任引路人。" },
+      { id: "ED-13", title: "【 終局・永恆的客房 】", desc: "針織毯子下傳來心跳，你再也無法從這張溫軟的木床上甦醒。" },
+      { id: "ED-14", title: "【 終局・因果坍塌 】", desc: "退路從不存在，當你執意轉身，世界只剩下一片雜訊與深淵。" },
+      { id: "ED-15", title: "【 終局・風鈴的哀歌 】", desc: "黃銅風鈴每次搖晃，便帶走你的一段記憶，直到你忘記自己的母語。" },
+      { id: "ED-16", title: "【 終局・白祈堂的告解室 】", desc: "你的罪孽太過沉重，除罪室的鐵門自外鎖死，吞噬了所有懺悔。" },
+      { id: "ED-17", title: "【 終局・被詛咒的旁觀者 】", desc: "你窺視了深淵，深淵奪走了你的雙眸，留你獨自在長夜中摸索。" },
+      { id: "ED-18", title: "【 終局・荒原石碑 】", desc: "青苔磚縫間的名字被雨水沖刷殆盡，世上再無 Saudade 的蹤跡。" },
+      { id: "ED-19", title: "【 終局・偽造的故鄉 】", desc: "你口袋裡的殘破地圖變成了純白，這裡從來不是故鄉，而是一座牢籠。" },
+      { id: "ED-20", title: "【 終局・唯一的未來 】", desc: "你踏出了這一步，接受了所有的瘋狂與變異，與小鎮融為一體。" }
+    ];
+
+    function getUnlockedEndings() {
+      try {
+        const raw = localStorage.getItem('sau_unlocked_endings');
+        return raw ? JSON.parse(raw) : [];
+      } catch(e) {
+        return [];
+      }
+    }
+
+    function triggerEnding(endingId) {
+      const unlocked = getUnlockedEndings();
+      if (!unlocked.includes(endingId)) {
+        unlocked.push(endingId);
+        localStorage.setItem('sau_unlocked_endings', JSON.stringify(unlocked));
+      }
+      checkEndingsPortalVisibility();
+
+      const endObj = totalEndings.find(e => e.id === endingId) || { id: endingId, title: "【 終局 】", desc: "因果已斷絕。" };
+
+      showImpactModal({
+        title: `達成 ${endObj.title}`,
+        lore: `${endObj.desc}\n\n【 意識正在消散⋯⋯該結局已刻入首頁「那麼，你究竟要往哪裡去」。 】`,
+        btnLabel: "[ 回歸虛無（返回終端） ]"
+      });
+
+      pendingTargetNode = null;
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+      if (confirmBtn) {
+        confirmBtn.onclick = function() {
+          closeImpactModal();
+          returnToTitleScreen();
+        };
+      }
+    }
+
+    function returnToTitleScreen() {
+      stopTavernSoundImmediately();
+      document.getElementById('gameContent').style.display = 'none';
+      document.getElementById('loadingScreen').style.display = 'block';
+      checkEndingsPortalVisibility();
+      checkSaveExistence();
+    }
+
+    function checkEndingsPortalVisibility() {
+      const unlocked = getUnlockedEndings();
+      const btn = document.getElementById('endingsPortalBtn');
+      if (btn) {
+        btn.style.display = unlocked.length > 0 ? 'inline-block' : 'none';
+      }
+    }
+
+    function openEndingsModal() {
+      playPageTurnSound();
+      renderEndingsList();
+      const modal = document.getElementById('endingsModal');
+      if (modal) modal.classList.add('active');
+    }
+
+    function closeEndingsModal() {
+      playPageTurnSound();
+      const modal = document.getElementById('endingsModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function renderEndingsList() {
+      const container = document.getElementById('endingsListContainer');
+      if (!container) return;
+      const unlocked = getUnlockedEndings();
+      container.innerHTML = '';
+
+      totalEndings.forEach(e => {
+        const isUnlocked = unlocked.includes(e.id);
+        const item = document.createElement('div');
+        item.className = `ending-track-item ${isUnlocked ? 'unlocked' : 'locked'}`;
+
+        if (isUnlocked) {
+          item.innerHTML = `
+            <div class="ending-track-title">${e.id} : ${e.title}</div>
+            <div class="ending-track-desc">${e.desc}</div>
+          `;
+        } else {
+          item.innerHTML = `
+            <div class="ending-track-title">${e.id} : 【 尚未抵達的因果 】</div>
+            <div class="ending-track-desc">████████████████████████████████████████</div>
+          `;
+        }
         container.appendChild(item);
       });
     }
@@ -1314,6 +1505,50 @@
         ]
       },
 
+      node_rest_inn: {
+        showNotes: false,
+        text: `木門在你身後輕聲被關上，這間旅館的房間不大，牆上掛著一幅小鎮的風景畫，窗外是連綿起伏的屋瓦與環山抱水的雲霧。你把為數不多的行李放下，坐在床緣，渾身像卸了氣似的。你發現自己比想像中的要更加疲憊，像是在米諾陶洛斯的迷宮中走了一輩子，又穿過了薛西弗斯的長路，越過愛情海不落平原的岸，才終於來到了這裡。
+
+床上，枕頭帶著乾燥溫暖的薰衣草香氣，針織被褥熨得平整，你原來並不打算就這麼睡過去，但身體比你要誠實許多⋯⋯
+
+當你再次醒來，天色微微發暗，你分不清自己睡了多久，半天？一天？只覺得胸口那種無端徬徨的緊張感輕了一些，隔著地板，你依稀能聽見樓下酒吧傳來隱約而細密的背景樂聲，杯盤碰撞與群眾交談的訊音傳進你的耳朵。
+
+有人在等你嗎？
+
+<div class="status-badge">【 Corpus: 100/100 ｜ Lucidity: 100/100 】</div>`,
+        choices: [
+          {
+            label: "【 ➤ 前往白祈堂 】",
+            target: "node_white_chapel"
+          },
+          {
+            label: "【 ➤ 前往書房亭 】",
+            target: "node_pavilion_of_tales"
+          },
+          {
+            label: "【 ➤ 前往老古堡 <span class=\"water-ink-blur\">*（違反索夫羅尼的建議）*</span> 】",
+            target: "node_old_estate"
+          },
+          {
+            label: "【 ➤ 繼續歇息 】",
+            target: "node_rest_inn_again"
+          }
+        ]
+      },
+
+      node_rest_inn_again: {
+        showNotes: false,
+        text: `你翻過身，拉高了針織毯子，試圖再次沉入那片深邃無夢的溫暖中。
+床板下的微震似乎更加明顯了，像是小鎮的心臟正在與你的脈搏悄然共振⋯⋯
+<div class="status-badge">【 篇章待續 】</div>`,
+        choices: [
+          {
+            label: "【 ➤ 終究還是起身離開客房 】",
+            target: "node_inn_room"
+          }
+        ]
+      },
+
       node_white_chapel: {
         showNotes: false,
         text: `你推開白祈堂純白而厚重的大門，教堂內部空曠得聽得見迴音，空氣裡彌漫著濃郁的乳香與燃燒殆盡的蠟燭味⋯⋯
@@ -1331,13 +1566,6 @@
       node_old_estate: {
         showNotes: false,
         text: `通往丘陵古堡的小路生滿了荊棘與雜草。天幕不知何時黯淡了下來，隱約間，你似乎聽見了羊群尖厲的叫聲⋯⋯
-<div class="status-badge">【 篇章待續 】</div>`,
-        choices: []
-      },
-
-      node_rest_inn: {
-        showNotes: false,
-        text: `你躺在針織毯子下閉上雙眼。窗外的風聲若有似無，你感覺到床板下傳來規律的、宛如心臟跳動般的微震⋯⋯
 <div class="status-badge">【 篇章待續 】</div>`,
         choices: []
       }
@@ -1519,6 +1747,7 @@
 
     window.onload = function() {
       checkSaveExistence();
+      checkEndingsPortalVisibility();
     };
   </script>
 </body>
